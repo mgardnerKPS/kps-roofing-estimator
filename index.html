@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>KPS Residential Roofing Estimator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0ede8;min-height:100vh;color:#1a1a1a;}
+.app{max-width:440px;margin:0 auto;padding-bottom:5rem;}
+
+/* HEADER */
+.hdr{background:#1a1a2e;color:#fff;padding:1.25rem 1.25rem 1rem;position:sticky;top:0;z-index:100;}
+.hdr-top{display:flex;justify-content:space-between;align-items:center;}
+.hdr h1{font-size:17px;font-weight:600;letter-spacing:-0.3px;}
+.hdr p{font-size:11px;color:rgba(255,255,255,0.45);margin-top:1px;}
+.steps{display:flex;gap:5px;margin-top:10px;}
+.step{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,0.15);transition:background 0.3s;}
+.step.done{background:rgba(255,255,255,0.5);}
+.step.active{background:#e97132;}
+.step-label{font-size:10px;color:rgba(255,255,255,0.45);margin-top:5px;text-align:center;}
+.od-text{font-size:11px;color:rgba(255,255,255,0.55);margin-top:9px;}
+.od-text strong{color:#fff;}
+.od-text.warn strong{color:#e9a24d;}
+.od-action{font-size:11px;color:#e97132;font-weight:600;cursor:pointer;margin-top:2px;user-select:none;}
+.od-action:active{opacity:0.7;}
+
+/* CARDS */
+.card{background:#fff;border-radius:14px;padding:1.125rem 1.25rem;margin:0.875rem 0.875rem 0;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.card-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:0.875rem;}
+
+/* FIELDS */
+.field{margin-bottom:0.75rem;}
+.field:last-child{margin-bottom:0;}
+.field label{font-size:13px;color:#555;display:block;margin-bottom:5px;}
+.field input,.field select{width:100%;padding:10px 12px;font-size:15px;border:1px solid #e0ddd8;border-radius:10px;background:#faf9f7;color:#1a1a1a;-webkit-appearance:none;}
+.field input:focus,.field select:focus{outline:none;border-color:#e97132;background:#fff;box-shadow:0 0 0 3px rgba(233,113,50,0.1);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* TOGGLES */
+.tog-group{display:flex;flex-wrap:wrap;gap:7px;}
+.tog{padding:7px 14px;font-size:13px;border:1px solid #e0ddd8;border-radius:20px;cursor:pointer;background:#faf9f7;color:#555;transition:all 0.15s;user-select:none;-webkit-user-select:none;}
+.tog.on{background:#1a1a2e;color:#fff;border-color:#1a1a2e;}
+.tog.accent.on{background:#e97132;border-color:#e97132;color:#fff;}
+
+/* STYLE CARDS */
+.style-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.sc{border:1.5px solid #e0ddd8;border-radius:12px;padding:12px;cursor:pointer;background:#faf9f7;transition:all 0.15s;}
+.sc.sel{border-color:#e97132;background:rgba(233,113,50,0.05);}
+.sc-num{font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;}
+.sc-sq{font-size:20px;font-weight:600;color:#1a1a2e;margin:2px 0;}
+.sc-sq span{font-size:12px;font-weight:400;color:#888;}
+.sc-desc{font-size:11px;color:#999;margin-top:3px;line-height:1.4;}
+.sc-cost{font-size:12px;color:#e97132;font-weight:500;margin-top:5px;}
+
+/* QTY FIELD */
+.qty-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0ede8;}
+.qty-row:last-child{border-bottom:none;}
+.qty-info{flex:1;}
+.qty-info .qname{font-size:14px;font-weight:500;color:#1a1a2e;}
+.qty-info .qsub{font-size:12px;color:#999;margin-top:1px;}
+.qty-ctrl{display:flex;align-items:center;gap:8px;}
+.qty-btn{width:32px;height:32px;border-radius:50%;border:1px solid #e0ddd8;background:#faf9f7;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555;line-height:1;transition:all 0.15s;}
+.qty-btn:active{background:#e0ddd8;}
+.qty-num{width:36px;text-align:center;font-size:16px;font-weight:600;color:#1a1a2e;}
+
+/* UPGRADES */
+.upg-row{padding:10px 0;border-bottom:1px solid #f0ede8;}
+.upg-row:last-child{border-bottom:none;}
+.upg-top{display:flex;align-items:center;gap:10px;}
+.upg-name{flex:1;font-size:14px;color:#1a1a2e;}
+.upg-rate{font-size:12px;color:#aaa;margin-right:8px;}
+.chk{width:24px;height:24px;border-radius:6px;border:1.5px solid #e0ddd8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:#faf9f7;}
+.chk.on{background:#e97132;border-color:#e97132;}
+.chk.on::after{content:'';width:5px;height:9px;border:2.5px solid #fff;border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px);display:block;}
+.upg-qty{margin-top:8px;display:none;}
+.upg-qty.show{display:block;}
+.upg-qty label{font-size:12px;color:#888;display:block;margin-bottom:4px;}
+.upg-qty input{width:100%;padding:8px 10px;font-size:14px;border:1px solid #e0ddd8;border-radius:8px;background:#faf9f7;}
+.upg-sell{font-size:12px;color:#e97132;font-weight:500;margin-top:4px;}
+
+/* MARGIN SELECTOR */
+.margin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.mpip{padding:10px 4px;text-align:center;border:1.5px solid #e0ddd8;border-radius:10px;cursor:pointer;font-size:14px;font-weight:500;color:#888;background:#faf9f7;transition:all 0.15s;}
+.mpip.sel{background:#1a1a2e;color:#fff;border-color:#1a1a2e;}
+.discount-row{display:flex;align-items:center;gap:10px;margin-top:0.875rem;padding-top:0.875rem;border-top:1px solid #f0ede8;}
+.discount-row label{font-size:13px;color:#555;white-space:nowrap;}
+.disc-input{width:70px;padding:8px 10px;font-size:14px;border:1px solid #e0ddd8;border-radius:8px;background:#faf9f7;text-align:center;}
+.disc-input:focus{outline:none;border-color:#e97132;}
+.disc-result{font-size:13px;color:#e97132;font-weight:600;}
+
+/* SUMMARY */
+.sum-card{background:#1a1a2e;border-radius:16px;padding:1.5rem;margin:0.875rem 0.875rem 0;color:#fff;}
+.sum-label{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px;}
+.sum-price{font-size:42px;font-weight:700;letter-spacing:-2px;margin:4px 0 2px;color:#fff;}
+.sum-sub{font-size:12px;color:rgba(255,255,255,0.45);}
+.sum-divider{border:none;border-top:1px solid rgba(255,255,255,0.1);margin:1rem 0;}
+.sum-row{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:5px;}
+.sum-row.bold{color:#fff;font-weight:600;font-size:14px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);margin-top:5px;}
+.sum-row .acc{color:#e97132;}
+
+/* COST DETAIL */
+.detail-row{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f0ede8;}
+.detail-row:last-child{border-bottom:none;}
+.detail-name{font-size:13px;color:#1a1a2e;flex:1;}
+.detail-sub{font-size:11px;color:#aaa;margin-top:2px;}
+.detail-prices{text-align:right;}
+.detail-sell{font-size:14px;font-weight:600;color:#1a1a2e;}
+.detail-cost{font-size:11px;color:#aaa;margin-top:1px;}
+
+/* BUTTONS */
+.btn-main{display:block;width:calc(100% - 1.75rem);margin:1rem 0.875rem 0;padding:15px;background:#e97132;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;letter-spacing:-0.2px;transition:all 0.15s;}
+.btn-main:active{transform:scale(0.98);}
+.btn-back{display:block;width:calc(100% - 1.75rem);margin:0.625rem 0.875rem 0;padding:13px;background:#fff;color:#555;border:1px solid #e0ddd8;border-radius:14px;font-size:15px;cursor:pointer;transition:all 0.15s;}
+.btn-back:active{background:#f0ede8;}
+.btn-tax{display:block;width:calc(100% - 1.75rem);margin:0.625rem 0.875rem 0;padding:13px;background:#fff;color:#e97132;border:1.5px solid #e97132;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.15s;text-align:center;}
+.btn-tax.on{background:#e97132;color:#fff;}
+.btn-tax:active{opacity:0.85;}
+.note{font-size:11px;color:#aaa;text-align:center;margin:0.625rem 0.875rem 0;line-height:1.6;}
+
+
+/* PRINT */
+@media print{
+  .hdr,.btn-main,.btn-back,.note{display:none!important;}
+  body{background:#fff;}
+  .app{max-width:100%;}
+  .card,.sum-card{margin:0 0 12pt;box-shadow:none;border:1px solid #ddd;}
+}
+</style>
+<!-- KPS App Suite shared sign-in — used to sync live pricing from the KPS Pricing SharePoint list -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msal-browser/3.18.0/msal-browser.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <div class="hdr">
+    <div class="hdr-top">
+      <div><h1>KPS Residential Roofing Estimator</h1><p>Kelly's Property Services</p></div>
+      <div id="pageLabel" style="font-size:11px;color:rgba(255,255,255,0.4);">Step 1 of 4</div>
+    </div>
+    <div class="steps">
+      <div class="step" id="s1"></div>
+      <div class="step" id="s2"></div>
+      <div class="step" id="s3"></div>
+      <div class="step" id="s4"></div>
+    </div>
+      <div class="od-text" id="odText">Prices: <strong>built-in defaults</strong></div>
+      <div class="od-action" id="odAction" onclick="connectKPSPricing()">Connect to KPS Pricing →</div>
+    </div>
+  </div>
+
+  <!-- PAGE 1: PROJECT INFO -->
+  <div id="page1">
+    <div class="card">
+      <div class="card-title">Project Info</div>
+      <div class="field"><label>Community / Project Name</label><input id="projName" placeholder="e.g. Arbor Glen Condominiums"/></div>
+      <div class="field"><label>Street Address</label><input id="projAddr" placeholder="Street address"/></div>
+      <div class="row2">
+        <div class="field"><label>City</label><input id="projCity" placeholder="City"/></div>
+        <div class="field"><label>State</label><input id="projState" placeholder="MA" maxlength="2"/></div>
+      </div>
+      <div class="field"><label>Total Units</label><input id="numUnits" type="number" min="0" placeholder="0"/></div>
+      <div class="field"><label>Contact Name</label><input id="contactName" placeholder="e.g. John Smith"/></div>
+      <div class="row2">
+        <div class="field"><label>Phone</label><input id="contactPhone" placeholder="(508) 555-0100" type="tel"/></div>
+        <div class="field"><label>Email</label><input id="contactEmail" placeholder="email@example.com" type="email"/></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Roof Specifications</div>
+      <div class="field"><label>Shingle Manufacturer</label>
+        <div class="tog-group">
+          <div class="tog on" id="mfgGAF" onclick="setMfg('GAF')">GAF</div>
+          <div class="tog" id="mfgCT" onclick="setMfg('CT')">CertainTeed</div>
+          <div class="tog" id="mfgOC" onclick="setMfg('OC')">Owens Corning</div>
+        </div>
+      </div>
+      <div class="field"><label>Shingle Product</label>
+        <select id="shingleProd" onchange="if(S.page===4) renderSummary()"></select>
+      </div>
+      <div class="field"><label>Shingle Color</label>
+        <input id="shingleColor" placeholder="e.g. Weathered Wood, Charcoal…" oninput="if(S.page===4) renderSummary()"/>
+      </div>
+      <div class="field"><label>Underlayment Product</label>
+        <select id="underlaymentProd" onchange="onMeasureChange()"></select>
+      </div>
+      <div class="field"><label>Ice &amp; Water Product</label>
+        <select id="iwProd" onchange="onMeasureChange()"></select>
+      </div>
+      <div class="field"><label>Labor Conditions (select all that apply)</label>
+        <div class="tog-group">
+          <div class="tog accent" id="togSteep" onclick="toggleState('steep',this)">Steep slope +$15/sq</div>
+          <div class="tog accent" id="togHigh" onclick="toggleState('high',this)">High roof +$10/sq</div>
+        </div>
+      </div>
+      <div class="field"><label>Notes</label><input id="projNotes" placeholder="Any additional details..."/></div>
+    </div>
+    <button class="btn-main" onclick="goPage(2)">Next: Roof Measurements →</button>
+  </div>
+
+
+
+  <!-- PAGE 2: ROOF MEASUREMENTS -->
+  <div id="page2" style="display:none">
+    <div class="card">
+      <div class="card-title">Roof Measurements</div>
+      <div class="row2">
+        <div class="field"><label>Squares (sq)</label><input id="mSq" type="number" min="0" step="0.1" placeholder="0.0" oninput="onMeasureChange()"/></div>
+        <div class="field"><label>Valleys (LF)</label><input id="mValleys" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Rakes (LF)</label><input id="mRakes" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+        <div class="field"><label>Eaves (LF)</label><input id="mEaves" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Flashing (LF)</label><input id="mFlashing" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+        <div class="field"><label>Step Flashing (LF)</label><input id="mStepFlashing" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Hips (LF)</label><input id="mHips" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+        <div class="field"><label>Ridges (LF)</label><input id="mRidges" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      </div>
+      <div class="field"><label>Skylights</label>
+        <div class="tog-group" style="margin-bottom:8px">
+          <div class="tog on" id="sklNone"   onclick="setSkyOp('none')">None</div>
+          <div class="tog"    id="sklReflash" onclick="setSkyOp('reflash')">Reflash</div>
+          <div class="tog"    id="sklReplace" onclick="setSkyOp('replace')">Replace</div>
+        </div>
+
+        <!-- REFLASH -->
+        <div id="sklReflashOpts" style="display:none">
+          <div class="row2">
+            <div class="field"><label>Qty to reflash</label>
+              <input id="mSkylights" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/>
+            </div>
+            <div style="font-size:11px;color:#aaa;padding-top:22px;line-height:1.5">$250 labor + $120 flashing kit each</div>
+          </div>
+        </div>
+
+        <!-- REPLACE -->
+        <div id="sklReplaceOpts" style="display:none">
+          <div class="row2">
+            <div class="field"><label>Qty to replace</label>
+              <input id="mSkylightsReplace" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/>
+            </div>
+            <div class="field"><label>Model</label>
+              <select id="skylightModel" onchange="onMeasureChange()">
+                <optgroup label="— M Series (30&quot; wide) —">
+                  <option value="FS_M02">FS M02 — Fixed 30×30</option>
+                  <option value="FS_M04">FS M04 — Fixed 30×38</option>
+                  <option value="FS_M06">FS M06 — Fixed 30×46</option>
+                  <option value="FS_M08">FS M08 — Fixed 30×54</option>
+                  <option value="VS_M02">VS M02 — Manual Vent 30×30</option>
+                  <option value="VS_M04" selected>VS M04 — Manual Vent 30×38</option>
+                  <option value="VS_M06">VS M06 — Manual Vent 30×46</option>
+                  <option value="VS_M08">VS M08 — Manual Vent 30×54</option>
+                  <option value="VSS_M02">VSS M02 — Solar Vent 30×30</option>
+                  <option value="VSS_M04">VSS M04 — Solar Vent 30×38</option>
+                  <option value="VSS_M06">VSS M06 — Solar Vent 30×46</option>
+                  <option value="VSS_M08">VSS M08 — Solar Vent 30×54</option>
+                </optgroup>
+                <optgroup label="— S Series (44&quot; wide) —">
+                  <option value="FS_S01">FS S01 — Fixed 44×27</option>
+                  <option value="FS_S06">FS S06 — Fixed 44×46</option>
+                  <option value="VS_S06">VS S06 — Manual Vent 44×46</option>
+                  <option value="VSS_S06">VSS S06 — Solar Vent 44×46</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px">$450 labor each + material cost from database</div>
+        </div>
+      </div>
+      <div class="field"><label>Chimneys (ea)</label><input id="mChimneys" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      <div class="field"><label>Horizontal Roofline Walls (ea)</label><input id="mHorizWalls" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      <div class="field"><label>Dormers (ea)</label><input id="mDormers" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      <div class="field"><label>Cheekwalls (ea)</label><input id="mCheekwalls" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+      <div class="field"><label>Ice &amp; Water — Additional Eave Row</label>
+        <div class="tog-group">
+          <div class="tog accent" id="togExtraIW" onclick="toggleExtraIW(this)">Add extra row along eaves</div>
+        </div>
+        <p style="font-size:11px;color:#aaa;margin-top:6px;">Adds 1 extra row of I&amp;W along all eaves (eaves ÷ 60 LF/roll, rounded up)</p>
+      </div>
+    </div>
+    <button class="btn-main" onclick="goPage(3)">Next: Upgrades &amp; Pricing →</button>
+    <button class="btn-back" onclick="goPage(1)">← Back</button>
+  </div>
+
+  <!-- PAGE 3: UPGRADES + MARGIN -->
+  <div id="page3" style="display:none">
+    <div class="card">
+      <div class="card-title">Optional Upgrades</div>
+      <p style="font-size:12px;color:#aaa;margin-bottom:12px;">Select upgrades and enter quantities. Sell prices include your margin.</p>
+      <div id="upgradeList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Gross Profit Margin</div>
+      <div class="discount-row" style="padding-top:0;border-top:none;">
+        <label>Gross margin:</label>
+        <input class="disc-input" id="marginPct" type="number" min="1" max="60" step="0.5" value="30" oninput="setMarginFromInput()"/>
+        <span style="font-size:13px;color:#555;">%</span>
+      </div>
+      <div class="discount-row">
+        <label>Field discount:</label>
+        <input class="disc-input" id="discPct" type="number" min="0" max="20" step="0.5" value="0" oninput="refreshUpgrades();calcAll()"/>
+        <span style="font-size:13px;color:#555;">%</span>
+        <span class="disc-result" id="discAmt"></span>
+      </div>
+    </div>
+    <button class="btn-main" onclick="goPage(4)">See Full Quote →</button>
+    <button class="btn-back" onclick="goPage(2)">← Back</button>
+  </div>
+
+  <!-- PAGE 4: SUMMARY -->
+  <div id="page4" style="display:none">
+    <div class="sum-card" id="sumCard">
+      <div class="sum-label">Total Quote Price</div>
+      <div class="sum-price" id="sumPrice">—</div>
+      <div class="sum-sub" id="sumSub"></div>
+      <hr class="sum-divider"/>
+      <div id="sumRows"></div>
+    </div>
+
+
+    <div class="card" id="materialsCard">
+      <div class="card-title">Material List</div>
+      <div id="materialDetail"></div>
+    </div>
+
+    <div class="card" id="upgradeDetailCard" style="display:none">
+      <div class="card-title">Optional Upgrades</div>
+      <div id="upgradeDetail"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Project Info</div>
+      <div id="projDetail"></div>
+    </div>
+
+    <button class="btn-main" onclick="window.print()">Print / Save as PDF</button>
+    <div style="display:grid;grid-template-columns:1fr;gap:8px;margin:0.5rem 0.875rem 0">
+      <button class="btn-main" style="background:#2d6a4f;margin:0" onclick="generatePDF('cost')">📋 Cost Sheet (Internal)</button>
+      <button class="btn-main" style="background:#003087;margin:0" onclick="generatePDF('proposal')">📄 Draft Proposal (Client)</button>
+      <button class="btn-main" style="background:#8b4513;margin:0" onclick="generatePDF('order')">📦 Material Order</button>
+    </div>
+    <button class="btn-tax" id="btnTax" onclick="toggleTax()">+ Include Material Sales Tax</button>
+    <button class="btn-back" onclick="goPage(3)">← Adjust Quote</button>
+    <p class="note">Use Print → Save as PDF to share this quote with your client.</p>
+  </div>
+
+</div>
+
+<!-- PRINT OVERLAY -->
+<div id="printOverlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:9999;overflow-y:auto;">
+  <div id="printBar" style="position:fixed;top:0;left:0;right:0;background:#1a1a2e;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:10000;font-family:Arial,sans-serif;font-size:12px;">
+    <div>
+      <div id="printFileName" style="font-weight:700;font-size:13px;"></div>
+      <div style="opacity:0.65;font-size:11px;">In print dialog → set Destination to <b>Save as PDF</b></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
+      <button onclick="doPrint()" style="background:#e97132;color:#fff;border:none;padding:8px 18px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">🖨 Print / Save as PDF</button>
+      <button onclick="closePrintOverlay()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">✕ Close</button>
+    </div>
+  </div>
+  <div id="printContent" style="margin-top:60px;padding:24px;max-width:800px;margin-left:auto;margin-right:auto;"></div>
+</div>
+
+<script>
+const DEFAULT_UPGRADES = [
+  {id:'iw',       name:'Additional I&W along eaves',               unitCost:6,   uom:'LF',      label:'Linear feet of eaves'},
+  {id:'gutter_c', name:'Commercial gutters & downspouts (white)',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet'},
+  {id:'gutter_r', name:'Residential gutters & downspouts (white)',  unitCost:19,  uom:'LF',      label:'Total gutter linear feet'},
+  {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls'},
+  {id:'dorm',     name:'Siding removal/reinstall — dormers',        unitCost:450, uom:'dormer',  label:'Number of dormers'},
+  {id:'warranty', name:'SureStart 5-star warranty',                  unitCost:20,  uom:'sq',      label:'Squares (auto-filled)'},
+  {id:'sheath',   name:'Replace rotted/damaged sheathing',           unitCost:120, uom:'4x8 sheet',label:'Number of sheets (est.)'},
+  {id:'framing',  name:'Roof framing repairs',                       unitCost:24.5,uom:'BF',      label:'Board feet (est.)'},
+  {id:'siding',   name:'New vinyl siding replacement',               unitCost:15,  uom:'SF',      label:'Square feet of siding'},
+];
+let UPGRADES = DEFAULT_UPGRADES;
+
+
+const S = {
+  page:1, steep:false, high:false,
+  margin:30, discount:0, extraIW:false, includeTax:false,
+};
+
+function fmt(n){ return '$'+Math.round(n).toLocaleString(); }
+function fmtDec(n,d=2){ return '$'+n.toFixed(d); }
+function multiplier(m){ return 1/(1-m/100); }
+function sellPrice(cost,m){ return cost * multiplier(m); }
+
+function toggleState(key, el){
+  S[key] = !S[key];
+  el.classList.toggle('on', S[key]);
+  if(S.page===3) refreshUpgrades();
+  if(S.page===4) renderSummary();
+}
+
+function toggleExtraIW(el){
+  S.extraIW = !S.extraIW;
+  el.classList.toggle('on', S.extraIW);
+}
+
+function goPage(n){
+  if(n===3){ renderUpgrades(); syncMarginInput(); }
+  if(n===4){
+    // sync tax button visual to current state
+    const btn = document.getElementById('btnTax');
+    if(btn){
+      btn.classList.toggle('on', S.includeTax);
+      btn.textContent = S.includeTax ? '✓ Material Sales Tax Included' : '+ Include Material Sales Tax';
+    }
+    renderSummary();
+  }
+  S.page = n;
+  [1,2,3,4].forEach(i=>{
+    document.getElementById('page'+i).style.display = i===n?'block':'none';
+    const s = document.getElementById('s'+i);
+    s.className = 'step' + (i<n?' done':'') + (i===n?' active':'');
+  });
+  document.getElementById('pageLabel').textContent = `Step ${n} of 4`;
+  window.scrollTo(0,0);
+}
+
+
+
+
+
+function getTotalSq(){
+  return parseFloat(document.getElementById('mSq')?.value||0);
+}
+
+function onMeasureChange(){
+  // update warranty qty if active
+  const wqty = document.getElementById('uqty_warranty');
+  if(wqty && document.getElementById('uchk_warranty')?.classList.contains('on')){
+    wqty.value = getTotalSq().toFixed(1);
+    refreshUpgrades();
+  }
+}
+
+function getBaseCost(){
+  const sq = getTotalSq();
+  let laborRate = LABOR_RATES.baseLabor;
+  if(S.steep) laborRate += LABOR_RATES.steepAdder;
+  if(S.high)  laborRate += LABOR_RATES.highAdder;
+  const labor = sq * laborRate;
+  const chimneys = parseFloat(document.getElementById('mChimneys')?.value||0);
+  const chimneyLabor = chimneys * LABOR_RATES.chimney;
+  const horizWalls = parseFloat(document.getElementById('mHorizWalls')?.value||0);
+  const horizWallLabor = horizWalls * LABOR_RATES.horizWall;
+  const dormers = parseFloat(document.getElementById('mDormers')?.value||0);
+  const dormerLabor = dormers * LABOR_RATES.dormer;
+  const cheekwalls = parseFloat(document.getElementById('mCheekwalls')?.value||0);
+  const cheekwallLabor = cheekwalls * LABOR_RATES.cheekwall;
+  const matResult = calcMaterials();
+  const matCost = matResult ? matResult.subtotal : 0;
+  const skylReflashQty = S_skyOp==='reflash' ? parseFloat(document.getElementById('mSkylights')?.value||0) : 0;
+  const skylReplaceQty = S_skyOp==='replace' ? parseFloat(document.getElementById('mSkylightsReplace')?.value||0) : 0;
+  const skylightLabor  = (skylReflashQty * 250) + (skylReplaceQty * 450);
+  return labor + chimneyLabor + horizWallLabor + dormerLabor + cheekwallLabor + skylightLabor + matCost;
+}
+
+function getUpgradeCost(){
+  let total = 0;
+  UPGRADES.forEach(u=>{
+    const qty = parseFloat(document.getElementById('uqty_'+u.id)?.value||0);
+    if(!qty) return;
+    const uqty = u.id==='warranty' ? getTotalSq() : qty;
+    total += u.unitCost * uqty;
+  });
+  return total;
+}
+
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║              PRICES — UPDATE THESE WHEN YOU GET A NEW INVOICE       ║
+// ║   To update: change the number after the colon, save the file,      ║
+// ║   and re-upload to SharePoint. All values are per unit listed.      ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+// ── LAST UPDATED: 2026-05-15 · Invoice #85426359-00 (Lansing) ────────────
+// These DEFAULT_ values are the offline fallback used when the KPS Pricing
+// list can't be reached. The live values come from SharePoint — see
+// "KPS Pricing Sync" below.
+const DEFAULT_MAT_PRICES = {
+
+  // SHINGLES (per bundle)
+  shingles:     35.23,  // CT Patriot XL · inv #85426359-00 · 2026-05-15
+  shadowRidge:  91.07,  // CT Shadow Ridge XL · inv #85426359-00 · 2026-05-15
+  shadowRidgeStd: 77.00,// CT Shadow Ridge standard · inv #85163781-00 · 2026-03-23
+
+  // VENTILATION
+  ridgeVent:    12.40,  // CT Ridge Vent black w/ nails (per pc) · inv #85426359-00
+  roofVent:     28.00,  // Broan 636 exhaust vent (each) · market estimate 2026-06-15
+
+  // STARTER STRIP (per bundle)
+  starterStrip: 71.50,  // CT Swift Start 116 ft · inv #85426359-00 · 2026-05-15
+
+  // UNDERLAYMENT (per roll)
+  underlayment: 105.10, // CT Roof Runner · inv #85426359-00 · 2026-05-15
+
+  // ICE & WATER SHIELD (per roll, covers 2 sq)
+  iw:           108.29, // CT WinterGuard · inv #85426359-00 · 2026-05-15
+
+  // FLASHING & TRIM
+  stepFlashing: 37.00,  // BB Flat 6x8 Step Flash (per pack) · inv #85426359-00
+  pipFlash:     6.84,   // IPS 4N1 Adjustable Pipe Flashing (each) · inv #85426359-00
+  dripEdge:     13.18,  // BB F8 Premium Alum Drip Edge White (per 10' pc) · inv #85426359-00
+  vycor9:       45.89,  // 9" Vycor Plus flashing tape (per roll)
+  valleyRoll:   43.16,  // Valley roll (per roll)
+  leadFlashing: 115.00, // Lead Flashing 12" (per roll) · inv #85426359-00 · 2026-05-15
+  leadFlashing10: 107.59,// Lead Flashing 10" (per roll)
+
+  // FASTENERS & SEALANTS
+  nails:        34.00,  // Coil EG Rfg Nail 1-1/4" (per carton) · inv #85426359-00
+  geocell:      10.13,  // Geocel 2300 Poly Clear (per tube) · inv #85426359-00
+
+  // SKYLIGHTS
+  skylightKit:  115.00, // Velux EDL Flashing M02–M08 (each) · inv #85426359-00
+  veluxSkylight:1007.80,// Velux VS M04 2004S w/ shade (each) · inv #85426359-00
+  veluxS06:     805.00, // Velux FS S06 2004S w/ shade (each) · inv #85553547-00 · 2026-06-12
+  veluxEdlS06:  118.00, // Velux EDL Flashing S01–S06 (each) · inv #85553547-00 · 2026-06-12
+
+  // SHEATHING
+  plywood:       24.00, // CDX Pine Plywood 1/2" 4x8 (per sheet) · inv #85163781-00
+
+  // TAX
+  taxRate:      0.0625, // 6.25% MA sales tax — update if rate changes
+};
+let MAT_PRICES = DEFAULT_MAT_PRICES;
+
+// ── LABOR RATES — update if your rates change ─────────────────────────────
+const DEFAULT_LABOR_RATES = {
+  baseLabor:   170,   // per sq — standard labor rate
+  steepAdder:   15,   // per sq — added for steep slope jobs
+  highAdder:    10,   // per sq — added for high roof jobs
+  chimney:     300,   // each
+  horizWall:   300,   // each — horizontal roofline wall
+  dormer:      500,   // each
+  cheekwall:   450,   // each
+  dumpster:   1000,   // per 50 sq
+  management:  300,   // per 50 sq
+  permitPct:  0.015,  // 1.5% of sell price
+};
+let LABOR_RATES = DEFAULT_LABOR_RATES;
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║                        END OF PRICES SECTION                        ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+// I&W scope multipliers (rows of coverage per edge type)
+const IW_ROWS = { eaves: 2, rakes: 1, valleys: 1, hipRidges: 0 };
+
+function roundUp(n) { return Math.ceil(n); }
+
+// ── SKYLIGHT OPERATION ────────────────────────────────────────────────────
+// 'none' | 'reflash' | 'replace'
+let S_skyOp = 'none';
+
+function setSkyOp(op){
+  S_skyOp = op;
+  ['none','reflash','replace'].forEach(o => {
+    document.getElementById('skl'+o.charAt(0).toUpperCase()+o.slice(1))?.classList.toggle('on', o===op);
+  });
+  document.getElementById('sklReflashOpts').style.display = op==='reflash'?'block':'none';
+  document.getElementById('sklReplaceOpts').style.display = op==='replace'?'block':'none';
+  onMeasureChange();
+}
+
+// Velux model price table [unit w/shade, flashing kit, label]
+// Prices: contractor estimates based on Home Depot retail 2026-06-15, ~15% below retail
+const DEFAULT_VELUX_MODELS = {
+  // FS Fixed — M Series
+  'FS_M02': [530,  115, 'Velux FS M02 Fixed 30×30 w/ shade'],
+  'FS_M04': [583,  115, 'Velux FS M04 Fixed 30×38 w/ shade'],
+  'FS_M06': [638,  115, 'Velux FS M06 Fixed 30×46 w/ shade'],
+  'FS_M08': [668,  115, 'Velux FS M08 Fixed 30×54 w/ shade'],
+  // VS Manual Vent — M Series
+  'VS_M02': [870,  115, 'Velux VS M02 Manual Vent 30×30 w/ shade'],
+  'VS_M04': [1007.80, 115, 'Velux VS M04 Manual Vent 30×38 w/ shade'],  // Lansing inv #85426359-00
+  'VS_M06': [1095, 115, 'Velux VS M06 Manual Vent 30×46 w/ shade'],
+  'VS_M08': [1180, 115, 'Velux VS M08 Manual Vent 30×54 w/ shade'],
+  // VSS Solar Vent — M Series
+  'VSS_M02': [1150, 115, 'Velux VSS M02 Solar Vent 30×30 w/ shade'],
+  'VSS_M04': [1280, 115, 'Velux VSS M04 Solar Vent 30×38 w/ shade'],
+  'VSS_M06': [1380, 115, 'Velux VSS M06 Solar Vent 30×46 w/ shade'],
+  'VSS_M08': [1490, 115, 'Velux VSS M08 Solar Vent 30×54 w/ shade'],
+  // FS Fixed — S Series
+  'FS_S01':  [680,  118, 'Velux FS S01 Fixed 44×27 w/ shade'],
+  'FS_S06':  [805,  118, 'Velux FS S06 Fixed 44×46 w/ shade'],        // Lansing inv #85553547-00
+  // VS Manual Vent — S Series
+  'VS_S06':  [950,  118, 'Velux VS S06 Manual Vent 44×46 w/ shade'],
+  // VSS Solar Vent — S Series
+  'VSS_S06': [1150, 118, 'Velux VSS S06 Solar Vent 44×46 w/ shade'],
+};
+let VELUX_MODELS = DEFAULT_VELUX_MODELS;
+
+function getSkylightPrices(){
+  const model = document.getElementById('skylightModel')?.value || 'VS_M04';
+  const m = VELUX_MODELS[model] || VELUX_MODELS['VS_M04'];
+  const isS = model.includes('_S');
+  return {
+    unit:       m[0],
+    flashing:   m[1],
+    label:      m[2],
+    flashLabel: isS ? 'Velux EDL S01–S06' : 'Velux EDL M02–M08'
+  };
+}
+
+function calcMaterials() {
+  const sq     = parseFloat(document.getElementById('mSq')?.value||0);
+  const valleys= parseFloat(document.getElementById('mValleys')?.value||0);
+  const rakes  = parseFloat(document.getElementById('mRakes')?.value||0);
+  const eaves  = parseFloat(document.getElementById('mEaves')?.value||0);
+  const flash  = parseFloat(document.getElementById('mFlashing')?.value||0);
+  const stepF  = parseFloat(document.getElementById('mStepFlashing')?.value||0);
+  const hips   = parseFloat(document.getElementById('mHips')?.value||0);
+  const ridges = parseFloat(document.getElementById('mRidges')?.value||0);
+  // Skylight quantities by operation
+  const skylReflash  = S_skyOp==='reflash' ? parseFloat(document.getElementById('mSkylights')?.value||0) : 0;
+  const skylReplace  = S_skyOp==='replace' ? parseFloat(document.getElementById('mSkylightsReplace')?.value||0) : 0;
+  const skyl = skylReplace; // used for material calcs below
+  const chim   = parseFloat(document.getElementById('mChimneys')?.value||0);
+  const p      = MAT_PRICES;
+
+  if(!sq) return null;
+
+  // I&W rolls first (needed for underlayment calc)
+  const eaveRows = IW_ROWS.eaves + (S.extraIW ? 1 : 0);
+  const extraIWRolls = S.extraIW ? roundUp(eaves / 60) : 0;
+  const baseIWRolls = Math.max(0, roundUp(
+    ((eaves * eaveRows / 65) + (rakes * IW_ROWS.rakes / 65) +
+     (valleys * IW_ROWS.valleys / 65) + ((hips + ridges) * IW_ROWS.hipRidges / 65)) * 1.05
+  ) - 1);
+  const iwRolls = baseIWRolls;
+
+  // Get prices based on selected shingle product
+  const sp = getShinglePrices();
+  const shingleLabel = (document.getElementById('shingleProd')?.value || 'Shingles');
+
+  const mats = [
+    { name: shingleLabel,         uom: 'bundles', qty: roundUp(sq * 3 * 1.05),                        price: sp.shingle     },
+    { name: 'Hip & Ridge',        uom: 'bundles', qty: roundUp((hips + ridges) * 1.1 / 20),            price: sp.hipRidge    },
+    { name: 'Ridge Vent',         uom: 'pcs',     qty: roundUp(ridges / 4 * 1.05),                     price: p.ridgeVent    },
+    { name: 'Starter Strip',      uom: 'bundles', qty: roundUp((eaves + 0.5 * rakes) / 100 * 1.1),     price: p.starterStrip },
+    { name: getUnderlaymentName(), uom: 'rolls',   qty: roundUp(((sq - iwRolls * 2) / 9) * 1.1),        price: getUnderlaymentPrice() },
+    { name: getIWName(),           uom: 'rolls',   qty: iwRolls,                                         price: getIWPrice()    },
+    { name: getIWName()+' — Extra Eave Row', uom: 'rolls', qty: extraIWRolls,                             price: getIWPrice()   },
+    { name: 'Roof Vents',         uom: 'ea',      qty: Math.round(sq / 7.5),                            price: p.roofVent     },
+    { name: 'Step Flashing',      uom: 'packs',   qty: roundUp(stepF / 30 * 1.05),                     price: p.stepFlashing },
+    { name: 'Roofing Nails',      uom: 'boxes',   qty: roundUp(sq / 12.5),                             price: p.nails        },
+    { name: 'Drip Edge F8',       uom: 'pcs',     qty: roundUp((rakes + eaves) * 1.05 / 10),           price: p.dripEdge     },
+    { name: '9" Vycor Flashing',  uom: 'rolls',   qty: roundUp((rakes + eaves) / 75 * 1.05),           price: p.vycor9       },
+    { name: 'Valley Roll',        uom: 'rolls',   qty: roundUp(valleys / 20 * 1.05),                   price: p.valleyRoll   },
+    { name: 'Geocel 2300 Caulking',  uom: 'tubes',   qty: roundUp(sq / 15),                               price: p.geocell      },
+    { name: 'Pipe Flashing 3"',           uom: 'ea',   qty: Math.max(0, 4 - skylReplace - skylReflash),     price: p.pipFlash     },
+    // Reflash materials
+    { name: 'Reflash Kit (generic)',       uom: 'ea',   qty: skylReflash,                                     price: 120            },
+    // Replace materials
+    { name: (() => { const sk = getSkylightPrices(); return sk.flashLabel; })(), uom: 'ea', qty: skyl,         price: (() => getSkylightPrices().flashing)()        },
+    { name: 'Lead Flashing 12"',          uom: 'rolls', qty: chim > 0 ? 1 : 0,                               price: p.leadFlashing },
+    { name: (() => { const sk = getSkylightPrices(); return sk.label; })(),      uom: 'ea', qty: skyl,         price: (() => getSkylightPrices().unit)()            },
+
+  ].filter(m => m.qty > 0);
+
+  const subtotal = mats.reduce((s, m) => s + m.qty * m.price, 0);
+  const tax      = subtotal * p.taxRate;
+  const total    = subtotal + tax;
+
+  return { mats, subtotal, tax, total };
+}
+
+function calcGC(){
+  const sq = getTotalSq();
+  if(!sq) return { dumpster:0, management:0, skylightMgmt:0, permit:0, total:0 };
+
+  // Skylight replacements add 0.5 sq each to dumpster waste calc
+  const skylReplace = S_skyOp==='replace' ? parseFloat(document.getElementById('mSkylightsReplace')?.value||0) : 0;
+  const effectiveSq = sq + (skylReplace * 0.5);
+
+  // Dumpster always applies — $1,000 per 50 sq (or fraction), min $1,000
+  const dumpsterUnits = Math.max(1, Math.ceil(effectiveSq / 50));
+  const dumpster      = dumpsterUnits * LABOR_RATES.dumpster;
+
+  // Management — $300 per 50 sq (or fraction), min $300
+  const mgmtUnits  = Math.max(1, Math.ceil(sq / 50));
+  const management = mgmtUnits * LABOR_RATES.management;
+
+  // Skylight management — $300 per 5 skylights replaced (rounded up)
+  const skylightMgmt = skylReplace > 0 ? Math.ceil(skylReplace / 5) * 300 : 0;
+
+  return { dumpster, management, skylightMgmt, permit:0, total: dumpster + management + skylightMgmt };
+}
+
+function calcPermit(sellPrice){
+  return sellPrice * 0.015;
+}
+function calcAll(){
+  S.discount = parseFloat(document.getElementById('discPct')?.value||0);
+  const baseCost = getBaseCost();
+  const upgCost  = getUpgradeCost();
+  const gc       = calcGC();
+  const m        = S.margin;
+  const mult     = 1 / (1 - m / 100);  // gross margin multiplier
+
+  // Sales tax (optional)
+  const matResult = calcMaterials();
+  const taxCost = (S.includeTax && matResult) ? matResult.tax : 0;
+
+  // Step 1: sum all hard costs (labor + materials + upgrades + dumpster + management)
+  const gcFixed  = gc.dumpster + gc.management + gc.skylightMgmt;
+  const hardCost = baseCost + upgCost + gcFixed + taxCost;
+
+  // Step 2: permit = 1.5% of final sell price (after discount)
+  // final = (hardCost + permitCost) * mult * (1 - disc)
+  // permit = final * 0.015
+  // Substituting: permitCost = permit / mult
+  //   final = (hardCost + permit/mult) * mult * (1-disc)
+  //         = (hardCost*mult + permit) * (1-disc)
+  //   permit = final * 0.015 = (hardCost*mult + permit) * (1-disc) * 0.015
+  //   permit * [1 - (1-disc)*0.015] = hardCost*mult*(1-disc)*0.015
+  //   permit = hardCost * mult * (1-disc) * 0.015 / [1 - (1-disc)*0.015]
+  const disc     = S.discount / 100;
+  const permit   = (hardCost * mult * (1 - disc) * LABOR_RATES.permitPct) / (1 - (1 - disc) * LABOR_RATES.permitPct);
+  const permitCost = permit / mult;
+
+  // Step 3: totalCost and sell price
+  const totalCost = hardCost + permitCost;
+  const totalSell = totalCost * mult;
+  const final     = totalSell * (1 - disc);
+  const saving    = totalSell - final;
+  const gp        = final - totalCost;
+
+  gc.permit = permit;
+
+  const discEl = document.getElementById('discAmt');
+  if(discEl) discEl.textContent = S.discount > 0 ? `saving ${fmt(saving)}` : '';
+  return { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost };
+}
+
+function syncMarginInput(){
+  const el = document.getElementById('marginPct');
+  if(el) el.value = S.margin;
+}
+
+function setMarginFromInput(){
+  const val = parseFloat(document.getElementById('marginPct')?.value);
+  if(!isNaN(val) && val > 0 && val < 100){
+    S.margin = val;
+    refreshUpgrades();
+    calcAll();
+  }
+}
+
+function refreshUpgrades(){
+  const m = S.margin;
+  UPGRADES.forEach(u=>{
+    const sellEl = document.getElementById('usell_'+u.id);
+    const qtyEl  = document.getElementById('uqty_'+u.id);
+    if(!sellEl) return;
+    const qty = u.id==='warranty' ? getTotalSq() : parseFloat(qtyEl?.value||0);
+    const unitSell = sellPrice(u.unitCost, m);
+    if(qty>0){
+      const totalSell = sellPrice(u.unitCost * (u.id==='warranty'?qty:qty), m);
+      sellEl.textContent = `${fmtDec(unitSell,2)}/` + u.uom + (qty>0 ? ` · Total: ${fmt(totalSell)}` : '');
+    } else {
+      sellEl.textContent = `Sell price: ${fmtDec(unitSell,2)}/${u.uom}`;
+    }
+  });
+  calcAll();
+}
+
+function renderUpgrades(){
+  const m = S.margin;
+  document.getElementById('upgradeList').innerHTML = UPGRADES.map(u=>{
+    const unitSell = sellPrice(u.unitCost, m);
+    const isWarranty = u.id==='warranty';
+    const autoQty = isWarranty ? getTotalSq().toFixed(1) : '';
+    return `<div class="upg-row">
+      <div class="upg-top">
+        <div class="upg-name">${u.name}</div>
+
+        <div class="chk" id="uchk_${u.id}" onclick="toggleUpgrade('${u.id}')"></div>
+      </div>
+      <div class="upg-qty" id="uqtyblock_${u.id}">
+        <label>${u.label}</label>
+        ${isWarranty
+          ? `<input id="uqty_${u.id}" type="number" value="${autoQty}" readonly style="background:#f0ede8;color:#aaa;" oninput="refreshUpgrades()"/>`
+          : `<input id="uqty_${u.id}" type="number" min="0" placeholder="Enter quantity" oninput="refreshUpgrades()"/>`
+        }
+        <div class="upg-sell" id="usell_${u.id}">Sell price: ${fmtDec(unitSell,2)}/${u.uom}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleUpgrade(id){
+  const chk  = document.getElementById('uchk_'+id);
+  const block= document.getElementById('uqtyblock_'+id);
+  const isOn = chk.classList.toggle('on');
+  block.classList.toggle('show', isOn);
+  if(isOn && id==='warranty'){
+    const qel = document.getElementById('uqty_'+id);
+    if(qel) qel.value = getTotalSq().toFixed(1);
+  }
+  refreshUpgrades();
+}
+
+function toggleTax(){
+  S.includeTax = !S.includeTax;
+  const btn = document.getElementById('btnTax');
+  btn.classList.toggle('on', S.includeTax);
+  btn.textContent = S.includeTax ? '✓ Material Sales Tax Included' : '+ Include Material Sales Tax';
+  renderSummary();
+}
+
+
+function renderSummary(){
+  const { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost } = calcAll();
+  const totalSq = getTotalSq();
+  const chimneyQty = parseFloat(document.getElementById('mChimneys')?.value||0);
+  const horizWallQty = parseFloat(document.getElementById('mHorizWalls')?.value||0);
+  const dormerQty = parseFloat(document.getElementById('mDormers')?.value||0);
+  const cheekwallQty = parseFloat(document.getElementById('mCheekwalls')?.value||0);
+  const disc = S.discount;
+
+  document.getElementById('sumPrice').textContent = fmt(final);
+  document.getElementById('sumSub').textContent =
+    `${m}% gross profit margin` + (disc>0 ? ` · ${disc}% field discount applied` : '');
+
+  const rows = [
+    ['Total squares', totalSq.toFixed(1)+' sq'],
+    ['Roofing & materials', fmt(baseCost)],
+    chimneyQty>0 ? ['Chimney labor ('+chimneyQty+'× $'+LABOR_RATES.chimney+')', fmt(chimneyQty*LABOR_RATES.chimney)] : null,
+    (()=>{ const rf=S_skyOp==='reflash'?parseFloat(document.getElementById('mSkylights')?.value||0):0; return rf>0?['Skylight reflash labor ('+rf+'× $250)',fmt(rf*250)]:null; })(),
+    (()=>{ const rp=S_skyOp==='replace'?parseFloat(document.getElementById('mSkylightsReplace')?.value||0):0; return rp>0?['Skylight replace labor ('+rp+'× $450)',fmt(rp*450)]:null; })(),
+    horizWallQty>0 ? ['Horiz. roofline walls ('+horizWallQty+'× $'+LABOR_RATES.horizWall+')', fmt(horizWallQty*LABOR_RATES.horizWall)] : null,
+    dormerQty>0 ? ['Dormers ('+dormerQty+'× $'+LABOR_RATES.dormer+')', fmt(dormerQty*LABOR_RATES.dormer)] : null,
+    cheekwallQty>0 ? ['Cheekwalls ('+cheekwallQty+'× $'+LABOR_RATES.cheekwall+')', fmt(cheekwallQty*LABOR_RATES.cheekwall)] : null,
+    upgCost>0 ? ['Upgrades', fmt(upgCost)] : null,
+    taxCost>0 ? ['Material sales tax (6.25%)', fmt(taxCost)] : null,
+    gc.dumpster>0 ? ['Dumpster', fmt(gc.dumpster)] : null,
+    gc.management>0 ? ['Project management', fmt(gc.management)] : null,
+    gc.skylightMgmt>0 ? ['Skylight management', fmt(gc.skylightMgmt)] : null,
+    gc.permit>0 ? ['Permit (1.5%)', fmt(gc.permit)] : null,
+    ['Total cost', fmt(totalCost)],
+    ['Sell price', fmt(totalSell)],
+    disc>0 ? ['Discount ('+disc+'%)', '− '+fmt(saving)] : null,
+    ['Gross profit', fmt(gp)],
+  ].filter(Boolean);
+
+  document.getElementById('sumRows').innerHTML = rows.map((r,i)=>
+    `<div class="sum-row${i>=rows.length-1?' bold':''}">
+      <span>${r[0]}</span>
+      <span class="${i>=rows.length-1?'acc':''}">${r[1]}</span>
+    </div>`).join('');
+
+
+  // Material detail
+  const matResult = calcMaterials();
+  const matCard = document.getElementById('materialsCard');
+  if(matResult && matCard){
+    document.getElementById('materialDetail').innerHTML =
+      matResult.mats.map(m=>`
+        <div class="detail-row">
+          <div><div class="detail-name">${m.name}</div><div class="detail-sub">${m.qty} ${m.uom} × ${fmtDec(m.price,2)}</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmtDec(m.qty*m.price,2)}</div></div>
+        </div>`).join('') +
+      `<div class="detail-row" style="border-bottom:none">
+        <div><div class="detail-name" style="color:#888">Subtotal</div></div>
+        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(matResult.subtotal)}</div></div>
+      </div>
+      <div class="detail-row" style="border-bottom:none">
+        <div><div class="detail-name" style="color:#888">Tax (6.25%)</div></div>
+        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(matResult.tax)}</div></div>
+      </div>
+      <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
+        <div><div class="detail-name" style="font-weight:600">Total Materials</div></div>
+        <div class="detail-prices"><div class="detail-sell">${fmt(matResult.total)}</div></div>
+      </div>`;
+  }
+
+  // Upgrade detail
+  const upgLines = UPGRADES.filter(u=>{
+    const chk = document.getElementById('uchk_'+u.id);
+    return chk && chk.classList.contains('on');
+  }).map(u=>{
+    const qty = u.id==='warranty' ? getTotalSq() : parseFloat(document.getElementById('uqty_'+u.id)?.value||0);
+    if(!qty) return '';
+    const unitSell = sellPrice(u.unitCost, m);
+    const totalSell = unitSell * qty;
+    return `<div class="detail-row">
+      <div>
+        <div class="detail-name">${u.name}</div>
+        <div class="detail-sub">${qty} ${u.uom} · $${u.unitCost} cost/${u.uom}</div>
+      </div>
+      <div class="detail-prices">
+        <div class="detail-sell">${fmt(totalSell)}</div>
+        <div class="detail-cost">${fmtDec(unitSell,2)}/unit sell</div>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  const upgradeCard = document.getElementById('upgradeDetailCard');
+  if(upgLines){ upgradeCard.style.display='block'; document.getElementById('upgradeDetail').innerHTML=upgLines; }
+  else upgradeCard.style.display='none';
+
+  // Project info
+  const name = document.getElementById('projName').value||'—';
+  const addr = [document.getElementById('projAddr').value,document.getElementById('projCity').value,document.getElementById('projState').value].filter(Boolean).join(', ')||'—';
+  const units= document.getElementById('numUnits').value||'—';
+  const mfgLabel = {'GAF':'GAF','CT':'CertainTeed','OC':'Owens Corning'};
+  const color = document.getElementById('shingleColor')?.value?.trim();
+  const shingle = (mfgLabel[S_mfg]||S_mfg) + ' ' + document.getElementById('shingleProd').value + (color ? ' — ' + color : '');
+  const notes=document.getElementById('projNotes').value;
+  const contact = document.getElementById('contactName')?.value||'';
+  const phone   = document.getElementById('contactPhone')?.value||'';
+  const email   = document.getElementById('contactEmail')?.value||'';
+  document.getElementById('projDetail').innerHTML = `
+    <div class="detail-row"><div class="detail-name">Project</div><div class="detail-sell" style="font-size:13px">${name}</div></div>
+    <div class="detail-row"><div class="detail-name">Address</div><div class="detail-cost" style="font-size:13px;color:#555">${addr}</div></div>
+    <div class="detail-row"><div class="detail-name">Total Units</div><div class="detail-sell" style="font-size:13px">${units} units</div></div>
+    ${contact?`<div class="detail-row"><div class="detail-name">Contact</div><div class="detail-sell" style="font-size:13px">${contact}</div></div>`:''}
+    ${phone?`<div class="detail-row"><div class="detail-name">Phone</div><div class="detail-cost" style="font-size:13px;color:#555">${phone}</div></div>`:''}
+    ${email?`<div class="detail-row"><div class="detail-name">Email</div><div class="detail-cost" style="font-size:13px;color:#555">${email}</div></div>`:''}
+    <div class="detail-row"><div class="detail-name">Shingle</div><div class="detail-sell" style="font-size:13px">${shingle}</div></div>
+    ${notes?`<div class="detail-row"><div class="detail-name">Notes</div><div class="detail-cost" style="font-size:13px;color:#555">${notes}</div></div>`:''}
+    <div class="detail-row" style="border-bottom:none"><div class="detail-name">Quote date</div><div class="detail-sell" style="font-size:13px">${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div></div>`;
+}
+
+// Shingle products with their bundle prices and matching hip/ridge prices
+// Format: [product name, field shingle $/bundle, hip & ridge $/bundle]
+const DEFAULT_MFG_PRODUCTS = {
+  GAF: [
+    ['Timberline HDZ AR',   40.00,  65.00],  // HDZ · Seal-A-Ridge
+    ['Timberline CS AR',    43.00,  65.00],  // CS AR · Seal-A-Ridge
+    ['Timberline UHDZ',     50.00,  88.00],  // UHDZ · Shadow Ridge
+    ['Camelot II',          79.00,  88.00],  // Designer · Shadow Ridge
+    ['Slateline',           84.00,  88.00],  // Designer · Shadow Ridge
+    ['Other — specify in notes', 40.00, 65.00],
+  ],
+  CT: [
+    ['Patriot XL',          35.23,  91.07],  // inv #85426359-00 · Shadow Ridge XL
+    ['Landmark',            38.00,  77.00],  // est · Shadow Ridge standard
+    ['Landmark Pro',        43.50,  91.07],  // inv #85163781-00 · Shadow Ridge XL — updated 2026-06-15
+    ['Landmark Premium',    55.00,  91.07],  // est · Shadow Ridge XL
+    ['Other — specify in notes', 35.23, 91.07],
+  ],
+  OC: [
+    ['Duration AR',         43.75,  95.00],  // Timbertex
+    ['TruDefinition Duration AR', 46.00, 95.00],
+    ['Oakridge AR',         36.00,  95.00],
+    ['Berkshire',           68.00,  95.00],
+    ['Woodcrest',           72.00,  95.00],
+    ['Other — specify in notes', 43.75, 95.00],
+  ],
+};
+let MFG_PRODUCTS = DEFAULT_MFG_PRODUCTS;
+
+// Underlayment options per manufacturer: [name, price/roll]
+// Prices are per roll (10 sq = 1,000 sq ft) — contractor/distributor estimates 2026-06-15
+const DEFAULT_UNDERLAYMENT_OPTIONS = {
+  GAF: [
+    ['GAF Tiger Paw (10 sq)',       192.48],  // Premium synthetic · inv #84101407-00
+    ['GAF Deck-Armor (10 sq)',      220.00],  // Breathable premium · est 2026
+    ['GAF FeltBuster (10 sq)',       75.00],  // Entry-level synthetic · est 2026
+  ],
+  CT: [
+    ['CT Roof Runner (10 sq)',      105.10],  // inv #85426359-00 · 2026-05-15
+    ['CT DiamondDeck (10 sq)',      145.00],  // Premium CT synthetic · est 2026
+  ],
+  OC: [
+    ['OC Deck Defense (10 sq)',      80.00],  // Entry-level OC synthetic · est 2026
+    ['OC ProArmor (10 sq)',         150.00],  // Premium OC synthetic · est 2026
+  ],
+};
+let UNDERLAYMENT_OPTIONS = DEFAULT_UNDERLAYMENT_OPTIONS;
+
+// Ice & Water options per manufacturer: [name, price/roll (2 sq = 200 sq ft)]
+// Prices are per roll — contractor/distributor estimates 2026-06-15
+const DEFAULT_IW_OPTIONS = {
+  GAF: [
+    ['GAF WeatherWatch (2 sq)',      97.50],  // Mineral-surfaced · inv #84101407-00
+    ['GAF StormGuard (2 sq)',       105.00],  // Film-surfaced, high-temp · est 2026
+  ],
+  CT: [
+    ['CT WinterGuard Sand (2 sq)',  108.29],  // inv #85426359-00 · 2026-05-15
+    ['CT WinterGuard HT Pro (2 sq)',135.00],  // High-temp · est 2026
+    ['Grace Ice & Water (2 sq)',    190.00],  // inv #85163781-00 · 2026-03-23
+  ],
+  OC: [
+    ['OC WeatherLock Mat (2 sq)',    95.00],  // Standard granular · est 2026
+    ['OC WeatherLock G (2 sq)',     100.00],  // Granulated · est 2026
+    ['OC WeatherLock Flex (2 sq)',  110.00],  // Flexible · est 2026
+  ],
+};
+let IW_OPTIONS = DEFAULT_IW_OPTIONS;
+
+function updateAccessoryDropdowns(){
+  const uSel = document.getElementById('underlaymentProd');
+  const iSel = document.getElementById('iwProd');
+  if(!uSel || !iSel) return;
+
+  const uOpts = UNDERLAYMENT_OPTIONS[S_mfg] || UNDERLAYMENT_OPTIONS['CT'];
+  const iOpts = IW_OPTIONS[S_mfg] || IW_OPTIONS['CT'];
+
+  const uPrev = uSel.value;
+  const iPrev = iSel.value;
+
+  uSel.innerHTML = uOpts.map(o=>`<option value="${o[0]}">${o[0]}</option>`).join('');
+  iSel.innerHTML = iOpts.map(o=>`<option value="${o[0]}">${o[0]}</option>`).join('');
+
+  // Restore previous selection if still available
+  if([...uSel.options].some(o=>o.value===uPrev)) uSel.value = uPrev;
+  if([...iSel.options].some(o=>o.value===iPrev)) iSel.value = iPrev;
+}
+
+function getUnderlaymentPrice(){
+  const sel = document.getElementById('underlaymentProd');
+  const name = sel ? sel.value : '';
+  const opts = UNDERLAYMENT_OPTIONS[S_mfg] || UNDERLAYMENT_OPTIONS['CT'];
+  const match = opts.find(o=>o[0]===name);
+  return match ? match[1] : 105.10;
+}
+
+function getIWPrice(){
+  const sel = document.getElementById('iwProd');
+  const name = sel ? sel.value : '';
+  const opts = IW_OPTIONS[S_mfg] || IW_OPTIONS['CT'];
+  const match = opts.find(o=>o[0]===name);
+  return match ? match[1] : 108.29;
+}
+
+function getUnderlaymentName(){
+  const sel = document.getElementById('underlaymentProd');
+  return sel ? sel.value : 'Underlayment';
+}
+
+function getIWName(){
+  const sel = document.getElementById('iwProd');
+  return sel ? sel.value : 'Ice & Water';
+}
+
+let S_mfg = 'GAF';
+
+function getShinglePrices(){
+  const sel = document.getElementById('shingleProd');
+  const idx = sel ? sel.selectedIndex : 0;
+  const products = MFG_PRODUCTS[S_mfg] || MFG_PRODUCTS['GAF'];
+  const product = products[idx] || products[0];
+  return { shingle: product[1], hipRidge: product[2] };
+}
+
+function setMfg(mfg){
+  S_mfg = mfg;
+  ['GAF','CT','OC'].forEach(m=>{
+    document.getElementById('mfg'+m).classList.toggle('on', m===mfg);
+  });
+  const sel = document.getElementById('shingleProd');
+  sel.innerHTML = MFG_PRODUCTS[mfg].map(p=>`<option>${p[0]}</option>`).join('');
+  updateAccessoryDropdowns();
+}
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  KPS PRICING SYNC                                                    ║
+// ║  Pulls live pricing from the "Estimator-Pricing" list on the KPS App ║
+// ║  Suite SharePoint site, using the shared KPS App Suite Azure AD app  ║
+// ║  registration (the same sign-in as the Inspection app). If sign-in   ║
+// ║  or the fetch fails for any reason, the DEFAULT_* values above stay  ║
+// ║  in effect and the app works exactly as it did before — nothing here║
+// ║  can break estimating if SharePoint is unreachable.                 ║
+// ╚══════════════════════════════════════════════════════════════════════╝
+
+const KPS_PRICING_CONFIG = {
+  clientId:     'cb076a13-5e15-4ae7-80cb-68bdd077aea2', // shared "KPS App Suite" app registration
+  tenantId:     '1979066b-105d-423c-9941-42fcd5ac0752', // Kelly's Property Services tenant
+  siteHostname: 'kellyspropertyservices.sharepoint.com',
+  sitePath:     '/sites/KPSAppSuite',
+  // The shared pricing database — one Excel table, reused by every KPS estimator
+  filePath:     '/Shared Documents/Estimating/Database/Estimator-Pricing.xlsx',
+  tableName:    'PricingCatalog',
+};
+const GRAPH_SCOPES = ['Sites.Read.All'];
+
+let kpsMsal = null;
+if (window.msal) {
+  try {
+    kpsMsal = new msal.PublicClientApplication({
+      auth: {
+        clientId: KPS_PRICING_CONFIG.clientId,
+        authority: 'https://login.microsoftonline.com/' + KPS_PRICING_CONFIG.tenantId,
+        redirectUri: window.location.href.split('#')[0].split('?')[0],
+      },
+      cache: { cacheLocation: 'localStorage' },
+    });
+  } catch (e) { console.error('MSAL init failed', e); }
+}
+
+function setOdStatus(html, warn) {
+  const t = document.getElementById('odText');
+  if (t) { t.innerHTML = html; t.classList.toggle('warn', !!warn); }
+}
+
+async function connectKPSPricing() {
+  if (!kpsMsal) { setOdStatus('Prices: <strong>built-in defaults</strong> (sync unavailable)', true); return; }
+  setOdStatus('Signing in…');
+  try {
+    const resp = await kpsMsal.loginPopup({ scopes: GRAPH_SCOPES });
+    kpsMsal.setActiveAccount(resp.account);
+    await syncPricingFromGraph();
+  } catch (err) {
+    console.error('KPS sign-in failed', err);
+    setOdStatus('Prices: <strong>built-in defaults</strong> (sign-in failed)', true);
+  }
+}
+
+async function getGraphToken() {
+  const account = kpsMsal.getActiveAccount() || kpsMsal.getAllAccounts()[0];
+  if (!account) throw new Error('not signed in');
+  try {
+    const res = await kpsMsal.acquireTokenSilent({ scopes: GRAPH_SCOPES, account });
+    return res.accessToken;
+  } catch (e) {
+    const res = await kpsMsal.acquireTokenPopup({ scopes: GRAPH_SCOPES, account });
+    return res.accessToken;
+  }
+}
+
+// Column order in the PricingCatalog Excel table — must match the sheet's header row.
+const PRICING_COLS = ['Title','Module','Category','Manufacturer','ItemKey','UnitCost',
+                       'SecondaryCost','UOM','SortOrder','Active','EffectiveDate','InvoiceRef','Notes'];
+
+// Excel table rows come back as plain arrays (one per spreadsheet row) — turn each
+// into a {ColumnName: value} object using the header order above.
+function excelRowToObj(arr) {
+  const o = {};
+  PRICING_COLS.forEach((c, i) => { o[c] = arr[i]; });
+  return o;
+}
+
+// Turns flat "Estimator-Pricing.xlsx" (PricingCatalog table) rows into the same
+// shapes DEFAULT_* uses. Expected columns: see PRICING_COLS above.
+function buildPricingFromRows(rawRows) {
+  const rows = rawRows.map(excelRowToObj);
+  const out = {
+    MAT_PRICES: {}, LABOR_RATES: {},
+    MFG_PRODUCTS: { GAF: [], CT: [], OC: [] },
+    UNDERLAYMENT_OPTIONS: { GAF: [], CT: [], OC: [] },
+    IW_OPTIONS: { GAF: [], CT: [], OC: [] },
+    VELUX_MODELS: {}, UPGRADES: [],
+  };
+  rows
+    .filter(r => r.Module === 'Roofing' || r.Module === 'Shared')
+    .filter(r => r.Active !== false && r.Active !== 'No' && r.Active !== 0)
+    .sort((a, b) => (Number(a.SortOrder) || 0) - (Number(b.SortOrder) || 0))
+    .forEach(r => {
+      const cat = r.Category, key = r.ItemKey, mfg = r.Manufacturer;
+      const cost = Number(r.UnitCost), cost2 = Number(r.SecondaryCost);
+      switch (cat) {
+        case 'Material': case 'Tax':
+          out.MAT_PRICES[key] = cost; break;
+        case 'Labor':
+          out.LABOR_RATES[key] = cost; break;
+        case 'ShingleProduct':
+          if (out.MFG_PRODUCTS[mfg]) out.MFG_PRODUCTS[mfg].push([r.Title, cost, cost2]);
+          break;
+        case 'Underlayment':
+          if (out.UNDERLAYMENT_OPTIONS[mfg]) out.UNDERLAYMENT_OPTIONS[mfg].push([r.Title, cost]);
+          break;
+        case 'IceWater':
+          if (out.IW_OPTIONS[mfg]) out.IW_OPTIONS[mfg].push([r.Title, cost]);
+          break;
+        case 'Skylight':
+          out.VELUX_MODELS[key] = [cost, cost2, r.Title]; break;
+        case 'Upgrade':
+          out.UPGRADES.push({ id: key, name: r.Title, unitCost: cost, uom: r.UOM, label: r.Notes || r.UOM }); break;
+      }
+    });
+  return out;
+}
+
+// Minimum sanity check before trusting a fetched list over the built-in defaults.
+function isPricingUsable(built) {
+  return ['GAF', 'CT', 'OC'].every(m => built.MFG_PRODUCTS[m].length > 0)
+      && Object.keys(built.MAT_PRICES).length > 0
+      && Object.keys(built.LABOR_RATES).length > 0;
+}
+
+function refreshAfterPricingChange() {
+  setMfg(S_mfg);            // rebuilds shingle + accessory dropdowns from the new MFG_PRODUCTS
+  if (S.page === 3) renderUpgrades();
+  if (S.page === 4) renderSummary();
+}
+
+async function syncPricingFromGraph() {
+  try {
+    const token = await getGraphToken();
+    const headers = { Authorization: 'Bearer ' + token };
+    const siteRes = await fetch(
+      `https://graph.microsoft.com/v1.0/sites/${KPS_PRICING_CONFIG.siteHostname}:${KPS_PRICING_CONFIG.sitePath}`,
+      { headers });
+    if (!siteRes.ok) throw new Error('site lookup failed: ' + siteRes.status);
+    const site = await siteRes.json();
+    const encodedPath = KPS_PRICING_CONFIG.filePath.split('/').map(encodeURIComponent).join('/');
+    const itemsRes = await fetch(
+      `https://graph.microsoft.com/v1.0/sites/${site.id}/drive/root:${encodedPath}:/workbook/tables('${KPS_PRICING_CONFIG.tableName}')/rows?$select=values`,
+      { headers });
+    if (!itemsRes.ok) throw new Error('pricing workbook fetch failed: ' + itemsRes.status);
+    const data = await itemsRes.json();
+    const rows = (data.value || []).map(r => r.values[0]);
+    const built = buildPricingFromRows(rows);
+    if (!isPricingUsable(built)) throw new Error('Estimator-Pricing.xlsx is missing required rows');
+
+    MAT_PRICES = Object.assign({}, DEFAULT_MAT_PRICES, built.MAT_PRICES);
+    LABOR_RATES = Object.assign({}, DEFAULT_LABOR_RATES, built.LABOR_RATES);
+    MFG_PRODUCTS = built.MFG_PRODUCTS;
+    UNDERLAYMENT_OPTIONS = { GAF: built.UNDERLAYMENT_OPTIONS.GAF.length ? built.UNDERLAYMENT_OPTIONS.GAF : DEFAULT_UNDERLAYMENT_OPTIONS.GAF,
+                              CT:  built.UNDERLAYMENT_OPTIONS.CT.length  ? built.UNDERLAYMENT_OPTIONS.CT  : DEFAULT_UNDERLAYMENT_OPTIONS.CT,
+                              OC:  built.UNDERLAYMENT_OPTIONS.OC.length  ? built.UNDERLAYMENT_OPTIONS.OC  : DEFAULT_UNDERLAYMENT_OPTIONS.OC };
+    IW_OPTIONS = { GAF: built.IW_OPTIONS.GAF.length ? built.IW_OPTIONS.GAF : DEFAULT_IW_OPTIONS.GAF,
+                   CT:  built.IW_OPTIONS.CT.length  ? built.IW_OPTIONS.CT  : DEFAULT_IW_OPTIONS.CT,
+                   OC:  built.IW_OPTIONS.OC.length  ? built.IW_OPTIONS.OC  : DEFAULT_IW_OPTIONS.OC };
+    VELUX_MODELS = Object.keys(built.VELUX_MODELS).length ? built.VELUX_MODELS : DEFAULT_VELUX_MODELS;
+    UPGRADES = built.UPGRADES.length ? built.UPGRADES : DEFAULT_UPGRADES;
+
+    const stamp = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    setOdStatus(`Prices: <strong>live from KPS Pricing</strong> · synced ${stamp}`);
+    const a = document.getElementById('odAction');
+    if (a) { a.textContent = 'Refresh prices'; a.onclick = syncPricingFromGraph; }
+    refreshAfterPricingChange();
+  } catch (err) {
+    console.error('KPS pricing sync failed, using built-in defaults', err);
+    setOdStatus('Prices: <strong>built-in defaults</strong> (sync failed)', true);
+  }
+}
+
+// On load: if the user is already signed in from a previous visit, sync silently
+// (no popup). Otherwise leave the "Connect to KPS Pricing" button showing.
+function initKPSPricing() {
+  if (!kpsMsal) return;
+  const account = kpsMsal.getAllAccounts()[0];
+  if (account) {
+    kpsMsal.setActiveAccount(account);
+    syncPricingFromGraph();
+  }
+}
+
+setMfg('GAF');
+updateAccessoryDropdowns();
+goPage(1);
+initKPSPricing();
+
+// ══════════════════════════════════════════════════════════════════════════
+// PDF GENERATION
+// ══════════════════════════════════════════════════════════════════════════
+
+const KPS_LOGO_B64 = 'data:image/png;base64,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';
+
+const MFG_COLORS = {
+  GAF: { primary: '#006b3c', secondary: '#004d2c', text: '#fff', accent: '#70ad47' },
+  CT:  { primary: '#003087', secondary: '#001a4d', text: '#fff', accent: '#6495ed' },
+  OC:  { primary: '#cc0000', secondary: '#880000', text: '#fff', accent: '#ff6666' },
+};
+
+const MFG_LABEL = { GAF: 'GAF', CT: 'CertainTeed', OC: 'Owens Corning' };
+
+function getDateStr(){
+  return new Date().toLocaleDateString('en-US',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+}
+
+function getSafeFileName(str){
+  return (str||'Unknown').replace(/[^a-zA-Z0-9\-_]/g,'_').replace(/_+/g,'_').substring(0,40);
+}
+
+function collectData(){
+  const { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m } = calcAll();
+  const matResult = calcMaterials();
+  const sp = getShinglePrices();
+  const name    = document.getElementById('projName')?.value||'Project';
+  const addr    = [document.getElementById('projAddr')?.value, document.getElementById('projCity')?.value, document.getElementById('projState')?.value].filter(Boolean).join(', ');
+  const units   = document.getElementById('numUnits')?.value||'';
+  const notes   = document.getElementById('projNotes')?.value||'';
+  const contact = document.getElementById('contactName')?.value||'';
+  const phone   = document.getElementById('contactPhone')?.value||'';
+  const email   = document.getElementById('contactEmail')?.value||'';
+  const color   = document.getElementById('shingleColor')?.value||'';
+  const prod    = document.getElementById('shingleProd')?.value||'';
+  const ul      = document.getElementById('underlaymentProd')?.value||'';
+  const iw      = document.getElementById('iwProd')?.value||'';
+  const disc    = S.discount;
+  const dateStr = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  return { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, matResult,
+    name, addr, units, notes, contact, phone, email, color, prod, ul, iw, disc, dateStr, sp };
+}
+
+function openPrintWindow(html, filename){
+  document.getElementById('printFileName').textContent = '📄 ' + filename;
+  document.getElementById('printContent').innerHTML = html;
+  document.getElementById('printOverlay').style.display = 'block';
+  document.getElementById('printOverlay').scrollTop = 0;
+  window._printFilename = filename;
+}
+
+function closePrintOverlay(){
+  document.getElementById('printOverlay').style.display = 'none';
+  document.getElementById('printContent').innerHTML = '';
+}
+
+function doPrint(){
+  // Hide the app, show only overlay content for printing
+  const overlay = document.getElementById('printOverlay');
+  const bar = document.getElementById('printBar');
+  bar.style.display = 'none';
+  overlay.style.position = 'static';
+  overlay.style.zIndex = 'auto';
+  document.querySelector('.app').style.display = 'none';
+
+  window.print();
+
+  // Restore after print dialog closes
+  setTimeout(() => {
+    bar.style.display = 'flex';
+    overlay.style.position = 'fixed';
+    overlay.style.zIndex = '9999';
+    document.querySelector('.app').style.display = 'block';
+  }, 500);
+}
+
+// ── PDF 1: INTERNAL COST SHEET ─────────────────────────────────────────────
+function generateCostSheet(d){
+  const mfg = S_mfg;
+  const col = MFG_COLORS[mfg];
+  const mats = d.matResult ? d.matResult.mats : [];
+  const matRows = mats.map(m => `
+    <tr>
+      <td>${m.name}</td>
+      <td style="text-align:center">${m.qty} ${m.uom}</td>
+      <td style="text-align:right">${fmtDec(m.price,2)}</td>
+      <td style="text-align:right"><b>${fmtDec(m.qty*m.price,2)}</b></td>
+    </tr>`).join('');
+
+  const laborRows = `
+    <tr><td>Base Labor</td><td style="text-align:center">${getTotalSq().toFixed(1)} sq</td><td style="text-align:right">${fmtDec(LABOR_RATES.baseLabor,2)}/sq</td><td style="text-align:right"><b>${fmt(getTotalSq()*LABOR_RATES.baseLabor)}</b></td></tr>
+    ${S.steep?`<tr><td>Steep Slope Surcharge</td><td style="text-align:center">${getTotalSq().toFixed(1)} sq</td><td style="text-align:right">${fmtDec(LABOR_RATES.steepAdder,2)}/sq</td><td style="text-align:right"><b>${fmt(getTotalSq()*LABOR_RATES.steepAdder)}</b></td></tr>`:''}
+    ${S.high?`<tr><td>High Roof Surcharge</td><td style="text-align:center">${getTotalSq().toFixed(1)} sq</td><td style="text-align:right">${fmtDec(LABOR_RATES.highAdder,2)}/sq</td><td style="text-align:right"><b>${fmt(getTotalSq()*LABOR_RATES.highAdder)}</b></td></tr>`:''}
+  `;
+
+  const gcRows = `
+    ${d.gc.dumpster>0?`<tr><td>Dumpster</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.dumpster)}</b></td></tr>`:''}
+    ${d.gc.management>0?`<tr><td>Project Management</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.management)}</b></td></tr>`:''}
+    ${d.gc.skylightMgmt>0?`<tr><td>Skylight Management</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.skylightMgmt)}</b></td></tr>`:''}
+    ${d.gc.permit>0?`<tr><td>Permit (1.5%)</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.permit)}</b></td></tr>`:''}
+  `;
+
+  return `
+  <div style="max-width:750px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px">
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:3px solid ${col.primary};margin-bottom:16px">
+      <img src="${KPS_LOGO_B64}" style="height:70px;width:70px;object-fit:contain"/>
+      <div style="text-align:center">
+        <div style="font-size:18px;font-weight:700;color:${col.primary}">INTERNAL COST SHEET</div>
+        <div style="font-size:11px;color:#666;margin-top:2px">Kelly's Property Services LLC — Confidential</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#555">
+        <div><b>Date:</b> ${d.dateStr}</div>
+        <div><b>Manufacturer:</b> ${MFG_LABEL[mfg]}</div>
+        <div><b>Margin:</b> ${d.m}%</div>
+      </div>
+    </div>
+
+    <!-- PROJECT INFO -->
+    <div style="background:#f5f5f5;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:11px">
+      <div><b>Project:</b> ${d.name}</div>
+      <div><b>Contact:</b> ${d.contact||'—'}</div>
+      <div><b>Address:</b> ${d.addr||'—'}</div>
+      <div><b>Phone:</b> ${d.phone||'—'}</div>
+      <div><b>Units:</b> ${d.units||'—'}</div>
+      <div><b>Email:</b> ${d.email||'—'}</div>
+      <div><b>Shingle:</b> ${MFG_LABEL[mfg]} ${d.prod}${d.color?' — '+d.color:''}</div>
+      <div><b>Squares:</b> ${getTotalSq().toFixed(1)} sq</div>
+    </div>
+
+    <!-- MATERIALS TABLE -->
+    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:0">MATERIALS</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
+      <thead><tr style="background:#eee">
+        <th style="text-align:left;padding:5px 8px">Item</th>
+        <th style="text-align:center;padding:5px 8px">Qty</th>
+        <th style="text-align:right;padding:5px 8px">Unit Cost</th>
+        <th style="text-align:right;padding:5px 8px">Total</th>
+      </tr></thead>
+      <tbody>
+        ${matRows}
+        <tr style="border-top:1px solid #ccc"><td colspan="3" style="padding:5px 8px;text-align:right;font-weight:600">Material Subtotal</td><td style="text-align:right;padding:5px 8px;font-weight:600">${fmt(d.matResult?.subtotal||0)}</td></tr>
+        ${d.taxCost>0||S.includeTax?`<tr><td colspan="3" style="padding:5px 8px;text-align:right">Tax (6.25%)</td><td style="text-align:right;padding:5px 8px">${fmt(d.matResult?.tax||0)}</td></tr>`:''}
+      </tbody>
+    </table>
+
+    <!-- LABOR TABLE -->
+    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0">LABOR</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
+      <thead><tr style="background:#eee">
+        <th style="text-align:left;padding:5px 8px">Item</th>
+        <th style="text-align:center;padding:5px 8px">Qty</th>
+        <th style="text-align:right;padding:5px 8px">Rate</th>
+        <th style="text-align:right;padding:5px 8px">Total</th>
+      </tr></thead>
+      <tbody>${laborRows}${gcRows}</tbody>
+    </table>
+
+    <!-- PROFIT SUMMARY -->
+    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0">PRICING SUMMARY</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
+      <tbody>
+        <tr><td style="padding:5px 8px">Total Cost</td><td style="text-align:right;padding:5px 8px">${fmt(d.totalCost)}</td></tr>
+        <tr><td style="padding:5px 8px">Sell Price (before discount)</td><td style="text-align:right;padding:5px 8px">${fmt(d.final/(1-d.disc/100))}</td></tr>
+        ${d.disc>0?`<tr><td style="padding:5px 8px">Field Discount (${d.disc}%)</td><td style="text-align:right;padding:5px 8px;color:#c00">− ${fmt(d.final/(1-d.disc/100)-d.final)}</td></tr>`:''}
+        <tr style="background:#f0f0f0;font-weight:700"><td style="padding:6px 8px">Final Sell Price</td><td style="text-align:right;padding:6px 8px;color:${col.primary};font-size:14px">${fmt(d.final)}</td></tr>
+        <tr><td style="padding:5px 8px">Gross Profit (${d.m}% margin)</td><td style="text-align:right;padding:5px 8px;color:#2d6a4f;font-weight:600">${fmt(d.gp)}</td></tr>
+      </tbody>
+    </table>
+    <div style="font-size:10px;color:#999;text-align:center">Internal use only — Kelly's Property Services LLC — Generated ${d.dateStr}</div>
+  </div>`;
+}
+
+// ── PDF 2: DRAFT PROPOSAL ──────────────────────────────────────────────────
+function generateProposal(d){
+  const mfg = S_mfg;
+  const col = MFG_COLORS[mfg];
+  const mfgName = MFG_LABEL[mfg];
+
+  return `
+  <div style="max-width:750px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px">
+
+    <!-- HEADER BANNER -->
+    <div style="background:${col.primary};padding:20px 24px;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+      <img src="${KPS_LOGO_B64}" style="height:80px;width:80px;object-fit:contain;background:#fff;border-radius:50%;padding:4px"/>
+      <div style="text-align:center;color:#fff">
+        <div style="font-size:22px;font-weight:800;letter-spacing:-0.5px">DRAFT PROPOSAL</div>
+        <div style="font-size:13px;opacity:0.8;margin-top:2px">Residential Roofing Estimate</div>
+      </div>
+      <div style="text-align:right;color:#fff;font-size:11px;opacity:0.9">
+        <div style="font-size:16px;font-weight:700;font-style:italic;letter-spacing:1px">${mfgName}</div>
+        <div style="margin-top:4px">Certified Installer</div>
+        <div style="font-size:10px;margin-top:2px">${d.dateStr}</div>
+      </div>
+    </div>
+
+    <!-- ACCENT BAR -->
+    <div style="background:${col.accent};height:4px;margin-bottom:20px"></div>
+
+    <!-- FROM / TO -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div style="background:#f8f8f8;border-radius:8px;padding:12px 14px;border-left:4px solid ${col.primary}">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:6px">From</div>
+        <div style="font-weight:700;color:#1a1a1a">Kelly's Property Services LLC</div>
+        <div style="color:#555;font-size:11px;margin-top:2px">PO Box 102, Southboro, MA 02453</div>
+        <div style="color:#555;font-size:11px">Licensed & Insured · ${mfgName} Certified</div>
+      </div>
+      <div style="background:#f8f8f8;border-radius:8px;padding:12px 14px;border-left:4px solid ${col.accent}">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#888;margin-bottom:6px">Prepared For</div>
+        <div style="font-weight:700;color:#1a1a1a">${d.name}</div>
+        ${d.addr?`<div style="color:#555;font-size:11px;margin-top:2px">${d.addr}</div>`:''}
+        ${d.units?`<div style="color:#555;font-size:11px">${d.units} units</div>`:''}
+        ${d.contact?`<div style="color:#555;font-size:11px;margin-top:4px"><b>Attn:</b> ${d.contact}</div>`:''}
+        ${d.phone?`<div style="color:#555;font-size:11px">${d.phone}</div>`:''}
+        ${d.email?`<div style="color:#555;font-size:11px">${d.email}</div>`:''}
+      </div>
+    </div>
+
+    <!-- SCOPE OF WORK -->
+    <div style="border:1.5px solid ${col.primary};border-radius:8px;overflow:hidden;margin-bottom:20px">
+      <div style="background:${col.primary};color:#fff;padding:8px 14px;font-weight:700;font-size:12px">SCOPE OF WORK</div>
+      <div style="padding:12px 14px;font-size:11px;line-height:1.8;color:#333">
+        <div>✓ Complete tear-off and removal of existing roofing materials</div>
+        <div>✓ Inspect and repair roof deck as needed</div>
+        <div>✓ Install ${d.ul||'underlayment'} synthetic underlayment</div>
+        <div>✓ Install ${d.iw||'ice & water shield'} at all eaves, valleys, and penetrations</div>
+        <div>✓ Install ${mfgName} ${d.prod}${d.color?' in '+d.color:''} shingles</div>
+        <div>✓ Install all flashing, drip edge, ridge vent, and hip & ridge cap</div>
+        <div>✓ Full cleanup and haul-away of all debris</div>
+        ${d.notes?`<div style="margin-top:6px;color:#555;font-style:italic">Notes: ${d.notes}</div>`:''}
+      </div>
+    </div>
+
+    <!-- PRICE BOX -->
+    <div style="background:${col.primary};border-radius:8px;padding:20px 24px;text-align:center;margin-bottom:20px">
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:1px">Total Project Price</div>
+      <div style="font-size:42px;font-weight:800;color:#fff;letter-spacing:-2px;margin:4px 0">${fmt(d.final)}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.6)">${getTotalSq().toFixed(1)} squares · ${mfgName} ${d.prod}${d.color?' · '+d.color:''}</div>
+      ${d.disc>0?`<div style="font-size:11px;color:${col.accent};margin-top:4px">${d.disc}% field discount applied</div>`:''}
+    </div>
+
+    <!-- TERMS -->
+    <div style="font-size:10px;color:#888;line-height:1.7;border-top:1px solid #ddd;padding-top:12px">
+      <b>Terms & Conditions:</b> This proposal is valid for 30 days from the date above. Price subject to change based on final measurements. Permit fees included at 1.5% of contract. Payment terms: 50% deposit upon signing, balance due upon completion. Kelly's Property Services LLC is fully licensed and insured. All work performed to manufacturer specifications to maintain warranty.
+    </div>
+
+    <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid #eee;font-size:10px;color:#aaa">
+      Draft Proposal · ${d.dateStr} · Kelly's Property Services LLC · PO Box 102, Southboro, MA 02453
+    </div>
+  </div>`;
+}
+
+// ── PDF 3: MATERIAL ORDER ──────────────────────────────────────────────────
+function generateMaterialOrder(d){
+  const mfg = S_mfg;
+  const col = MFG_COLORS[mfg];
+  const mats = d.matResult ? d.matResult.mats : [];
+  const matRows = mats.map((m,i) => `
+    <tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
+      <td style="padding:6px 8px">${m.name}</td>
+      <td style="text-align:center;padding:6px 8px">${m.qty}</td>
+      <td style="text-align:center;padding:6px 8px">${m.uom}</td>
+      <td style="text-align:right;padding:6px 8px">${fmtDec(m.price,2)}</td>
+      <td style="text-align:right;padding:6px 8px"><b>${fmtDec(m.qty*m.price,2)}</b></td>
+    </tr>`).join('');
+
+  return `
+  <div style="max-width:750px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px">
+
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:12px;border-bottom:3px solid ${col.primary};margin-bottom:16px">
+      <img src="${KPS_LOGO_B64}" style="height:70px;width:70px;object-fit:contain"/>
+      <div style="text-align:center">
+        <div style="font-size:18px;font-weight:700;color:${col.primary}">MATERIAL ORDER</div>
+        <div style="font-size:11px;color:#666;margin-top:2px">Kelly's Property Services LLC</div>
+      </div>
+      <div style="text-align:right;font-size:11px;color:#555">
+        <div><b>Date:</b> ${d.dateStr}</div>
+        <div><b>Project:</b> ${d.name}</div>
+        <div><b>Squares:</b> ${getTotalSq().toFixed(1)} sq</div>
+      </div>
+    </div>
+
+    <!-- PROJECT SUMMARY -->
+    <div style="background:#f5f5f5;border-radius:6px;padding:8px 14px;margin-bottom:14px;font-size:11px;display:grid;grid-template-columns:1fr 1fr;gap:3px 20px">
+      <div><b>Project:</b> ${d.name}</div>
+      <div><b>Address:</b> ${d.addr||'—'}</div>
+      <div><b>Shingle:</b> ${MFG_LABEL[mfg]} ${d.prod}${d.color?' — '+d.color:''}</div>
+      <div><b>Units:</b> ${d.units||'—'}</div>
+      <div><b>Underlayment:</b> ${d.ul||'—'}</div>
+      <div><b>Ice & Water:</b> ${d.iw||'—'}</div>
+    </div>
+
+    <!-- MATERIAL TABLE -->
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px">
+      <thead>
+        <tr style="background:${col.primary};color:#fff">
+          <th style="text-align:left;padding:7px 8px">Material</th>
+          <th style="text-align:center;padding:7px 8px">Qty</th>
+          <th style="text-align:center;padding:7px 8px">UOM</th>
+          <th style="text-align:right;padding:7px 8px">Unit Cost</th>
+          <th style="text-align:right;padding:7px 8px">Total</th>
+        </tr>
+      </thead>
+      <tbody>${matRows}</tbody>
+    </table>
+
+    <!-- TOTALS -->
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
+      <tbody>
+        <tr style="border-top:2px solid ${col.primary}">
+          <td colspan="4" style="padding:6px 8px;text-align:right;font-weight:600">Material Subtotal</td>
+          <td style="text-align:right;padding:6px 8px;font-weight:600">${fmt(d.matResult?.subtotal||0)}</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding:6px 8px;text-align:right">Tax (6.25%)</td>
+          <td style="text-align:right;padding:6px 8px">${fmt(d.matResult?.tax||0)}</td>
+        </tr>
+        <tr style="background:${col.primary};color:#fff;font-weight:700;font-size:13px">
+          <td colspan="4" style="padding:8px 8px;text-align:right">TOTAL WITH TAX</td>
+          <td style="text-align:right;padding:8px 8px">${fmt(d.matResult?.total||0)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="font-size:10px;color:#aaa;text-align:center">Material Order · ${d.name} · ${MFG_LABEL[mfg]} · ${d.dateStr} · Kelly's Property Services LLC</div>
+  </div>`;
+}
+
+// ── GENERATE A SINGLE PDF ──────────────────────────────────────────────────
+function generatePDF(type){
+  const d = collectData();
+  const mfgName = MFG_LABEL[S_mfg];
+  const proj = getSafeFileName(d.name);
+  const mfgSafe = getSafeFileName(mfgName);
+  const date = getDateStr();
+
+  if(type === 'cost'){
+    openPrintWindow(generateCostSheet(d), `${proj}_${mfgSafe}_${date}`);
+  } else if(type === 'proposal'){
+    openPrintWindow(generateProposal(d), `DraftProposal_${proj}_${mfgSafe}_${date}`);
+  } else if(type === 'order'){
+    openPrintWindow(generateMaterialOrder(d), `MaterialOrder_${proj}_${mfgSafe}_${date}`);
+  }
+}
+
+</script>
+</body>
+</html>
