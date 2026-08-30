@@ -129,6 +129,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </style>
 <!-- KPS App Suite shared sign-in — used to sync live pricing from the KPS Pricing SharePoint list -->
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<!-- Used to render the Cost Sheet to a real PDF file for saving to SharePoint (Save PO Summary) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -153,7 +156,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div id="page1">
     <div class="card">
       <div class="card-title">Project Info</div>
-      <div class="field"><label>Community / Project Name</label><input id="projName" placeholder="e.g. Arbor Glen Condominiums"/></div>
+      <div class="field"><label>Community / Project Name</label><input id="projName" placeholder="e.g. Arbor Glen Condominiums" oninput="suggestProjectId()"/></div>
+      <div class="field"><label>Project ID</label><input id="projectId" placeholder="e.g. ArborGlen-2026-001" oninput="projectIdDirty=true"/>
+        <div style="font-size:11px;color:#8a8578;margin-top:4px">Auto-filled from the project name + current year — edit if needed. Used as the SharePoint folder name.</div>
+      </div>
       <div class="field"><label>Street Address</label><input id="projAddr" placeholder="Street address"/></div>
       <div class="row2">
         <div class="field"><label>City</label><input id="projCity" placeholder="City"/></div>
@@ -343,7 +349,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="btn-main" style="background:#2d6a4f;margin:0" onclick="generatePDF('cost')">📋 Cost Sheet (Internal)</button>
       <button class="btn-main" style="background:#003087;margin:0" onclick="generatePDF('proposal')">📄 Draft Proposal (Client)</button>
       <button class="btn-main" style="background:#8b4513;margin:0" onclick="generatePDF('order')">📦 Material Order</button>
+      <button class="btn-main" style="background:#6b4fa0;margin:0" onclick="saveEstimateToSharePoint()">☁️ Save PO Summary to SharePoint</button>
     </div>
+    <div id="spStatus" style="font-size:12px;text-align:center;margin:2px 14px 8px;min-height:14px"></div>
     <button class="btn-tax" id="btnTax" onclick="toggleTax()">+ Include Material Sales Tax</button>
     <button class="btn-back" onclick="goPage(3)">← Adjust Quote</button>
     <p class="note">Use Print → Save as PDF to share this quote with your client.</p>
@@ -367,6 +375,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 </div>
 
 <script>
+// ── PROJECT ID (SharePoint folder key: PropertyName-YYYY-###) ──────────────
+const CURRENT_YEAR = new Date().getFullYear();
+let projectIdDirty = false;
+
+function slugifyProjectName(str){
+  const clean = (str||'').replace(/[^a-zA-Z0-9]+/g,'');
+  return clean.substring(0,30) || '';
+}
+
+function suggestProjectId(){
+  if(projectIdDirty) return;
+  const nameEl = document.getElementById('projName');
+  const idEl = document.getElementById('projectId');
+  if(!nameEl || !idEl) return;
+  const slug = slugifyProjectName(nameEl.value);
+  idEl.value = slug ? `${slug}-${CURRENT_YEAR}-001` : '';
+}
+
 const DEFAULT_UPGRADES = [
   {id:'iw',       name:'Additional I&W along eaves',               unitCost:6,   uom:'LF',      label:'Linear feet of eaves'},
   {id:'gutter_c', name:'Commercial gutters & downspouts (white)',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet'},
@@ -919,8 +945,10 @@ function renderSummary(){
   const contact = document.getElementById('contactName')?.value||'';
   const phone   = document.getElementById('contactPhone')?.value||'';
   const email   = document.getElementById('contactEmail')?.value||'';
+  const projectId = document.getElementById('projectId')?.value||'';
   document.getElementById('projDetail').innerHTML = `
     <div class="detail-row"><div class="detail-name">Project</div><div class="detail-sell" style="font-size:13px">${name}</div></div>
+    ${projectId?`<div class="detail-row"><div class="detail-name">Project ID</div><div class="detail-sell" style="font-size:13px">${projectId}</div></div>`:''}
     <div class="detail-row"><div class="detail-name">Address</div><div class="detail-cost" style="font-size:13px;color:#555">${addr}</div></div>
     <div class="detail-row"><div class="detail-name">Total Units</div><div class="detail-sell" style="font-size:13px">${units} units</div></div>
     ${contact?`<div class="detail-row"><div class="detail-name">Contact</div><div class="detail-sell" style="font-size:13px">${contact}</div></div>`:''}
@@ -1256,6 +1284,161 @@ async function initKPSPricing() {
   }
 }
 
+// ── SAVE PO SUMMARY TO SHAREPOINT ───────────────────────────────────────────
+// Saves the internal Cost Sheet as a real PDF into
+// Projects/{ProjectID}/Estimating/Roofing/ on the KPS App Suite site.
+// Uploading needs write access, so this requests a separate scope from the
+// read-only pricing sync above (incremental consent — same signed-in user).
+const GRAPH_WRITE_SCOPES = ['Sites.ReadWrite.All'];
+
+function setSpStatus(html, warn) {
+  const el = document.getElementById('spStatus');
+  if (!el) return;
+  el.innerHTML = html;
+  el.style.color = warn ? '#b3261e' : '#2d6a4f';
+}
+
+async function getGraphWriteToken() {
+  await kpsMsalReady;
+  if (!kpsMsal) throw new Error('MSAL not initialized');
+  let account = kpsMsal.getActiveAccount() || kpsMsal.getAllAccounts()[0];
+  if (!account) {
+    const resp = await kpsMsal.loginPopup({ scopes: GRAPH_WRITE_SCOPES });
+    kpsMsal.setActiveAccount(resp.account);
+    return resp.accessToken;
+  }
+  try {
+    const res = await kpsMsal.acquireTokenSilent({ scopes: GRAPH_WRITE_SCOPES, account });
+    return res.accessToken;
+  } catch (e) {
+    const res = await kpsMsal.acquireTokenPopup({ scopes: GRAPH_WRITE_SCOPES, account });
+    return res.accessToken;
+  }
+}
+
+async function graphFetch(url, token, opts = {}) {
+  const res = await fetch(url, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token } });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error('Graph ' + res.status + ': ' + text.slice(0, 200));
+  }
+  return res;
+}
+
+async function getSuiteDrive(token) {
+  const siteRes = await graphFetch(
+    `https://graph.microsoft.com/v1.0/sites/${KPS_PRICING_CONFIG.siteHostname}:${KPS_PRICING_CONFIG.sitePath}`,
+    token);
+  const site = await siteRes.json();
+  const rootRes = await graphFetch(
+    `https://graph.microsoft.com/v1.0/sites/${site.id}/drive/root?$select=id,parentReference`,
+    token);
+  const root = await rootRes.json();
+  return { siteId: site.id, driveId: root.parentReference.driveId, rootId: root.id };
+}
+
+async function ensureFolder(token, driveId, parentId, name) {
+  const clean = (name || 'Untitled').replace(/[\\/:*?"<>|]/g, '-').trim() || 'Untitled';
+  const listRes = await graphFetch(
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children?$select=id,name,folder`, token);
+  const list = await listRes.json();
+  const existing = (list.value || []).find(it => it.folder && it.name.toLowerCase() === clean.toLowerCase());
+  if (existing) return existing.id;
+  const createRes = await fetch(`https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: clean, folder: {}, '@microsoft.graph.conflictBehavior': 'fail' })
+  });
+  if (createRes.ok) return (await createRes.json()).id;
+  // Someone else created it between our check and our create — look it up again.
+  const retryRes = await graphFetch(
+    `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}/children?$select=id,name,folder`, token);
+  const retryList = await retryRes.json();
+  const found = (retryList.value || []).find(it => it.folder && it.name.toLowerCase() === clean.toLowerCase());
+  if (found) return found.id;
+  throw new Error('Could not create/find folder "' + clean + '"');
+}
+
+async function ensurePath(token, driveId, rootId, segments) {
+  let parentId = rootId;
+  for (const seg of segments) parentId = await ensureFolder(token, driveId, parentId, seg);
+  return parentId;
+}
+
+async function uploadFile(token, driveId, parentId, filename, blob) {
+  const clean = filename.replace(/[\\/:*?"<>|]/g, '-');
+  if (blob.size < 4 * 1024 * 1024) {
+    await graphFetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}:/${encodeURIComponent(clean)}:/content`,
+      token, { method: 'PUT', headers: { 'Content-Type': blob.type || 'application/pdf' }, body: blob });
+  } else {
+    const sessRes = await graphFetch(
+      `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${parentId}:/${encodeURIComponent(clean)}:/createUploadSession`,
+      token, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item: { '@microsoft.graph.conflictBehavior': 'replace' } }) });
+    const session = await sessRes.json();
+    const putRes = await fetch(session.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Length': blob.size, 'Content-Range': `bytes 0-${blob.size - 1}/${blob.size}` },
+      body: blob
+    });
+    if (!putRes.ok && putRes.status !== 202) throw new Error('Upload failed for ' + clean);
+  }
+}
+
+// Renders an HTML string (the Cost Sheet markup) into a real PDF Blob using
+// jsPDF + html2canvas, off-screen, without disturbing the visible page.
+function htmlToPdfBlob(html) {
+  return new Promise((resolve, reject) => {
+    const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+    if (!jsPDFCtor) { reject(new Error('PDF library did not load — check network/CDN access.')); return; }
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.left = '-10000px';
+    container.style.top = '0';
+    container.style.width = '800px';
+    container.style.background = '#fff';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    const doc = new jsPDFCtor({ unit: 'pt', format: 'letter' });
+    doc.html(container, {
+      x: 20, y: 20, width: 555, windowWidth: 800,
+      html2canvas: { scale: 0.72 },
+      callback: (finishedDoc) => {
+        document.body.removeChild(container);
+        resolve(finishedDoc.output('blob'));
+      }
+    });
+  });
+}
+
+function getIsoDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function saveEstimateToSharePoint() {
+  const projectId = (document.getElementById('projectId')?.value || '').trim();
+  if (!projectId) { setSpStatus('Enter a Project ID on the Project Info page before saving.', true); return; }
+  setSpStatus('Preparing PO Summary…');
+  try {
+    const d = collectData();
+    const html = generateCostSheet(d);
+    const blob = await htmlToPdfBlob(html);
+    setSpStatus('Signing in…');
+    const token = await getGraphWriteToken();
+    setSpStatus('Uploading…');
+    const { driveId, rootId } = await getSuiteDrive(token);
+    const folderId = await ensurePath(token, driveId, rootId, ['Projects', projectId, 'Estimating', 'Roofing']);
+    const filename = `${getSafeFileName(d.name)} PO Summary ${getIsoDateStr()}.pdf`;
+    await uploadFile(token, driveId, folderId, filename, blob);
+    setSpStatus(`Saved to SharePoint: Projects/${projectId}/Estimating/Roofing/${filename}`);
+  } catch (err) {
+    console.error('Save to SharePoint failed', err);
+    setSpStatus('Save failed: ' + (err.message || err), true);
+  }
+}
+
 setMfg('GAF');
 updateAccessoryDropdowns();
 goPage(1);
@@ -1288,6 +1471,7 @@ function collectData(){
   const matResult = calcMaterials();
   const sp = getShinglePrices();
   const name    = document.getElementById('projName')?.value||'Project';
+  const projectId = document.getElementById('projectId')?.value||'';
   const addr    = [document.getElementById('projAddr')?.value, document.getElementById('projCity')?.value, document.getElementById('projState')?.value].filter(Boolean).join(', ');
   const units   = document.getElementById('numUnits')?.value||'';
   const notes   = document.getElementById('projNotes')?.value||'';
@@ -1301,7 +1485,7 @@ function collectData(){
   const disc    = S.discount;
   const dateStr = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   return { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, matResult,
-    name, addr, units, notes, contact, phone, email, color, prod, ul, iw, disc, dateStr, sp };
+    name, projectId, addr, units, notes, contact, phone, email, color, prod, ul, iw, disc, dateStr, sp };
 }
 
 function openPrintWindow(html, filename){
@@ -1382,6 +1566,7 @@ function generateCostSheet(d){
     <!-- PROJECT INFO -->
     <div style="background:#f5f5f5;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:11px">
       <div><b>Project:</b> ${d.name}</div>
+      <div><b>Project ID:</b> ${d.projectId||'—'}</div>
       <div><b>Contact:</b> ${d.contact||'—'}</div>
       <div><b>Address:</b> ${d.addr||'—'}</div>
       <div><b>Phone:</b> ${d.phone||'—'}</div>
