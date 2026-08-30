@@ -352,7 +352,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="btn-main" style="background:#6b4fa0;margin:0" onclick="saveEstimateToSharePoint()">☁️ Save PO Summary to SharePoint</button>
     </div>
     <div id="spStatus" style="font-size:12px;text-align:center;margin:2px 14px 8px;min-height:14px"></div>
-    <button class="btn-tax" id="btnTax" onclick="toggleTax()">+ Include Material Sales Tax</button>
+    <button class="btn-tax on" id="btnTax" onclick="toggleTax()">− Exclude Material Sales Tax</button>
     <button class="btn-back" onclick="goPage(3)">← Adjust Quote</button>
     <p class="note">Use Print → Save as PDF to share this quote with your client.</p>
   </div>
@@ -409,7 +409,7 @@ let UPGRADES = DEFAULT_UPGRADES;
 
 const S = {
   page:1, steep:false, high:false,
-  margin:30, discount:0, extraIW:false, includeTax:false,
+  margin:30, discount:0, extraIW:false, includeTax:true,
 };
 
 function fmt(n){ return '$'+Math.round(n).toLocaleString(); }
@@ -436,7 +436,7 @@ function goPage(n){
     const btn = document.getElementById('btnTax');
     if(btn){
       btn.classList.toggle('on', S.includeTax);
-      btn.textContent = S.includeTax ? '✓ Material Sales Tax Included' : '+ Include Material Sales Tax';
+      btn.textContent = S.includeTax ? '− Exclude Material Sales Tax' : '+ Include Material Sales Tax';
     }
     renderSummary();
   }
@@ -839,7 +839,7 @@ function toggleTax(){
   S.includeTax = !S.includeTax;
   const btn = document.getElementById('btnTax');
   btn.classList.toggle('on', S.includeTax);
-  btn.textContent = S.includeTax ? '✓ Material Sales Tax Included' : '+ Include Material Sales Tax';
+  btn.textContent = S.includeTax ? '− Exclude Material Sales Tax' : '+ Include Material Sales Tax';
   renderSummary();
 }
 
