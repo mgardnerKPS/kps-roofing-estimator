@@ -1086,6 +1086,9 @@ const KPS_PRICING_CONFIG = {
 const GRAPH_SCOPES = ['Sites.Read.All'];
 
 let kpsMsal = null;
+// msal-browser v3+ requires initialize() to resolve before any other MSAL call —
+// every function below awaits this promise first.
+let kpsMsalReady = Promise.resolve();
 if (window.msal) {
   try {
     kpsMsal = new msal.PublicClientApplication({
@@ -1096,7 +1099,8 @@ if (window.msal) {
       },
       cache: { cacheLocation: 'localStorage' },
     });
-  } catch (e) { console.error('MSAL init failed', e); }
+    kpsMsalReady = kpsMsal.initialize().catch(e => { console.error('MSAL initialize failed', e); kpsMsal = null; });
+  } catch (e) { console.error('MSAL init failed', e); kpsMsal = null; }
 }
 
 function setOdStatus(html, warn) {
@@ -1105,6 +1109,7 @@ function setOdStatus(html, warn) {
 }
 
 async function connectKPSPricing() {
+  await kpsMsalReady;
   if (!kpsMsal) { setOdStatus('Prices: <strong>built-in defaults</strong> (sync unavailable)', true); return; }
   setOdStatus('Signing in…');
   try {
@@ -1118,6 +1123,8 @@ async function connectKPSPricing() {
 }
 
 async function getGraphToken() {
+  await kpsMsalReady;
+  if (!kpsMsal) throw new Error('MSAL not initialized');
   const account = kpsMsal.getActiveAccount() || kpsMsal.getAllAccounts()[0];
   if (!account) throw new Error('not signed in');
   try {
@@ -1239,7 +1246,8 @@ async function syncPricingFromGraph() {
 
 // On load: if the user is already signed in from a previous visit, sync silently
 // (no popup). Otherwise leave the "Connect to KPS Pricing" button showing.
-function initKPSPricing() {
+async function initKPSPricing() {
+  await kpsMsalReady;
   if (!kpsMsal) return;
   const account = kpsMsal.getAllAccounts()[0];
   if (account) {
