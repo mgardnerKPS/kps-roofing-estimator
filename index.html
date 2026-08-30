@@ -246,36 +246,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
         <!-- REPLACE -->
         <div id="sklReplaceOpts" style="display:none">
-          <div class="row2">
-            <div class="field"><label>Qty to replace</label>
-              <input id="mSkylightsReplace" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/>
-            </div>
-            <div class="field"><label>Model</label>
-              <select id="skylightModel" onchange="onMeasureChange()">
-                <optgroup label="— M Series (30&quot; wide) —">
-                  <option value="FS_M02">FS M02 — Fixed 30×30</option>
-                  <option value="FS_M04">FS M04 — Fixed 30×38</option>
-                  <option value="FS_M06">FS M06 — Fixed 30×46</option>
-                  <option value="FS_M08">FS M08 — Fixed 30×54</option>
-                  <option value="VS_M02">VS M02 — Manual Vent 30×30</option>
-                  <option value="VS_M04" selected>VS M04 — Manual Vent 30×38</option>
-                  <option value="VS_M06">VS M06 — Manual Vent 30×46</option>
-                  <option value="VS_M08">VS M08 — Manual Vent 30×54</option>
-                  <option value="VSS_M02">VSS M02 — Solar Vent 30×30</option>
-                  <option value="VSS_M04">VSS M04 — Solar Vent 30×38</option>
-                  <option value="VSS_M06">VSS M06 — Solar Vent 30×46</option>
-                  <option value="VSS_M08">VSS M08 — Solar Vent 30×54</option>
-                </optgroup>
-                <optgroup label="— S Series (44&quot; wide) —">
-                  <option value="FS_S01">FS S01 — Fixed 44×27</option>
-                  <option value="FS_S06">FS S06 — Fixed 44×46</option>
-                  <option value="VS_S06">VS S06 — Manual Vent 44×46</option>
-                  <option value="VSS_S06">VSS S06 — Solar Vent 44×46</option>
-                </optgroup>
-              </select>
-            </div>
-          </div>
-          <div style="font-size:11px;color:#aaa;margin-top:2px">$450 labor each + material cost from database</div>
+          <div id="sklReplaceRows"></div>
+          <div style="font-size:11px;color:#aaa;margin-top:2px">$450 labor each + material cost from database · enter a quantity to add another skylight/model row</div>
         </div>
       </div>
       <div class="field"><label>Chimneys (ea)</label><input id="mChimneys" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
@@ -289,6 +261,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <p style="font-size:11px;color:#aaa;margin-top:6px;">Adds 1 extra row of I&amp;W along all eaves (eaves ÷ 60 LF/roll, rounded up)</p>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-title">Flat Roof / EPDM (Optional)</div>
+      <div class="tog-group" style="margin-bottom:10px">
+        <div class="tog accent" id="togFlatRoof" onclick="toggleFlatRoof(this)">Include Flat Roof Section</div>
+      </div>
+      <div id="flatRoofFields" style="display:none">
+        <div class="row2">
+          <div class="field"><label>Flat Roof Area (SF)</label><input id="mFlatArea" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+          <div class="field"><label>Wall-side Termination (LF)</label><input id="mFlatWallTerm" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Open Edge / Drip Metal (LF)</label><input id="mFlatOpenEdge" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+          <div class="field"><label>Penetrations — Pipe Boots (ea)</label><input id="mFlatPipeBoots" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+        </div>
+        <div class="field"><label>Pourable Sealer Pockets (ea)</label><input id="mFlatSealerPockets" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+        <div class="field">
+          <div class="tog-group">
+            <div class="tog" id="togCoverBoard" onclick="toggleState('flatCoverBoard',this)">Add Cover Board (+$0.82/sf)</div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:#aaa;margin-top:6px;">Flat/EPDM materials are itemized (membrane, primer, adhesives, tape, fasteners, etc.), each priced separately from real job-cost data (Concord Greene Phase 4). Not yet tied to live SharePoint pricing sync — hardcoded defaults for now.</p>
+      </div>
+    </div>
+
     <button class="btn-main" onclick="goPage(3)">Next: Upgrades &amp; Pricing →</button>
     <button class="btn-back" onclick="goPage(1)">← Back</button>
   </div>
@@ -332,6 +329,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="card" id="materialsCard">
       <div class="card-title">Material List</div>
       <div id="materialDetail"></div>
+    </div>
+
+    <div class="card" id="flatRoofCard" style="display:none">
+      <div class="card-title">Flat Roof / EPDM Detail</div>
+      <div id="flatRoofDetail"></div>
     </div>
 
     <div class="card" id="upgradeDetailCard" style="display:none">
@@ -410,6 +412,7 @@ let UPGRADES = DEFAULT_UPGRADES;
 const S = {
   page:1, steep:false, high:false,
   margin:30, discount:0, extraIW:false, includeTax:true,
+  hasFlat:false, flatCoverBoard:false,
 };
 
 function fmt(n){ return '$'+Math.round(n).toLocaleString(); }
@@ -427,6 +430,14 @@ function toggleState(key, el){
 function toggleExtraIW(el){
   S.extraIW = !S.extraIW;
   el.classList.toggle('on', S.extraIW);
+}
+
+function toggleFlatRoof(el){
+  S.hasFlat = !S.hasFlat;
+  el.classList.toggle('on', S.hasFlat);
+  const fields = document.getElementById('flatRoofFields');
+  if(fields) fields.style.display = S.hasFlat ? 'block' : 'none';
+  onMeasureChange();
 }
 
 function goPage(n){
@@ -484,9 +495,11 @@ function getBaseCost(){
   const matResult = calcMaterials();
   const matCost = matResult ? matResult.subtotal : 0;
   const skylReflashQty = S_skyOp==='reflash' ? parseFloat(document.getElementById('mSkylights')?.value||0) : 0;
-  const skylReplaceQty = S_skyOp==='replace' ? parseFloat(document.getElementById('mSkylightsReplace')?.value||0) : 0;
+  const skylReplaceQty = getSklReplaceTotalQty();
   const skylightLabor  = (skylReflashQty * 250) + (skylReplaceQty * 450);
-  return labor + chimneyLabor + horizWallLabor + dormerLabor + cheekwallLabor + skylightLabor + matCost;
+  const flatResult = calcFlatRoof();
+  const flatCost = flatResult ? flatResult.total : 0;
+  return labor + chimneyLabor + horizWallLabor + dormerLabor + cheekwallLabor + skylightLabor + matCost + flatCost;
 }
 
 function getUpgradeCost(){
@@ -498,6 +511,51 @@ function getUpgradeCost(){
     total += u.unitCost * uqty;
   });
   return total;
+}
+
+// ── FLAT ROOF / EPDM CALCULATIONS ───────────────────────────────────────────
+// Itemized materials takeoff — mirrors the coverage-based ROUNDUP formulas
+// found in the source PO Summary workbook, so each material is its own
+// priced line (updatable independently) rather than one blended rate.
+function fmtQty(n){ return Number.isInteger(n) ? String(n) : n.toFixed(2); }
+
+function calcFlatRoof(){
+  if(!S.hasFlat) return null;
+  const area = parseFloat(document.getElementById('mFlatArea')?.value||0);
+  if(!area) return null;
+  const sq = area / 100;
+  const wallTerm       = parseFloat(document.getElementById('mFlatWallTerm')?.value||0);
+  const openEdge       = parseFloat(document.getElementById('mFlatOpenEdge')?.value||0);
+  const pipeBoots      = parseFloat(document.getElementById('mFlatPipeBoots')?.value||0);
+  const sealerPockets  = parseFloat(document.getElementById('mFlatSealerPockets')?.value||0);
+  const perim = wallTerm + openEdge;
+  const p = FLAT_PRICES;
+  const wasteArea = area * (1 + p.waste);
+  // Seam tape / caulk basis: source sheet uses (area/10 estimated seam length + perimeter)
+  const seamBasis = area / 10 + perim;
+
+  const items = [
+    { name:'EPDM Membrane, 60-mil Fully Adhered', uom:'roll',   qty: roundUp(wasteArea / p.membraneCov),      price: p.membrane },
+    S.flatCoverBoard ? { name:'Cover Board', uom:'sheet', qty: roundUp(wasteArea / p.coverBoardCov), price: p.coverBoard } : null,
+    { name:'Primer',                        uom:'gal',    qty: roundUp(area / p.primerCov),             price: p.primer },
+    { name:'Bonding Adhesive',              uom:'pail',   qty: roundUp(area / p.bondingAdhCov),         price: p.bondingAdh },
+    { name:'Spray / Splice Adhesive',       uom:'gal',    qty: roundUp(area / p.sprayAdhCov),           price: p.sprayAdh },
+    { name:'Membrane Cleaner',              uom:'jug',    qty: roundUp(area / p.cleanerCov),            price: p.cleaner },
+    { name:'Seam Tape',                     uom:'roll',   qty: roundUp(seamBasis / p.seamTapeCov),      price: p.seamTape },
+    { name:'In-seam Caulk / Lap Sealant',   uom:'tube',   qty: roundUp(seamBasis / p.caulkCov),         price: p.caulk },
+    { name:'Mechanical Fasteners & Plates', uom:'bucket', qty: roundUp(area / p.fastenersCov),          price: p.fasteners },
+    wallTerm>0 ? { name:'Termination Bar', uom:'ea',    qty: roundUp(wallTerm / p.termBarCov),    price: p.termBar } : null,
+    openEdge>0 ? { name:'Metal Edge / Coping', uom:'ea', qty: roundUp(openEdge / p.metalEdgeCov), price: p.metalEdge } : null,
+    perim>0    ? { name:'Water Block Sealant', uom:'tube', qty: roundUp(perim / p.waterBlockCov), price: p.waterBlock } : null,
+    { name:'Application Tools & Consumables', uom:'job', qty: 1,              price: p.suppliesKit },
+    pipeBoots>0     ? { name:'Pipe Boots',              uom:'ea', qty: pipeBoots,     price: p.pipeBoot } : null,
+    sealerPockets>0 ? { name:'Pourable Sealer Pockets', uom:'ea', qty: sealerPockets, price: p.sealerPocket } : null,
+  ].filter(Boolean);
+
+  const matSubtotal = items.reduce((s,i)=>s + i.qty*i.price, 0);
+  const labor = area * p.labor;
+
+  return { area, sq, items, matSubtotal, labor, total: matSubtotal + labor };
 }
 
 
@@ -573,6 +631,58 @@ const DEFAULT_LABOR_RATES = {
 };
 let LABOR_RATES = DEFAULT_LABOR_RATES;
 
+// ── FLAT ROOF / EPDM PRICES — reverse-engineered from the real per-material
+// takeoff formulas in the Concord Greene Phase 4 PO Summary (Bldg 14 & 29
+// "FLAT ROOF TAKEOFF" sheets), each material priced and covered separately
+// (not a blended rate) so any single item can be updated as its cost
+// changes. Quantities are computed the same way the source sheet does:
+// ROUNDUP(coverage basis ÷ per-unit coverage). Reconstruction validated
+// against both buildings' real invoiced subtotals (within ~0.2%).
+// Not yet tied to the live SharePoint pricing sync — hardcoded defaults for now.
+const DEFAULT_FLAT_PRICES = {
+  // EPDM MEMBRANE
+  membrane:      550.00, // $/roll — EPDM 60-mil fully adhered
+  membraneCov:   500,    // sf covered per roll
+
+  // COVER BOARD (optional add-on)
+  coverBoard:     24.92, // $/sheet — 1/2" HD/Securock cover board
+  coverBoardCov:  32,    // sf covered per sheet
+
+  // ADHESIVES & PRIMER
+  primer:        104.24, // $/gal
+  primerCov:    1000,    // sf covered per gal
+  bondingAdh:    213.46, // $/pail — substrate + membrane bonding adhesive
+  bondingAdhCov: 300,    // sf covered per pail
+  sprayAdh:      214.49, // $/gal — spray/splice adhesive (OlyBond-type)
+  sprayAdhCov:   250,    // sf covered per gal
+  cleaner:        62.13, // $/5-gal jug — membrane cleaner
+  cleanerCov:   5000,    // sf covered per jug
+
+  // SEAMING & FLASHING ACCESSORIES
+  seamTape:      461.60, // $/roll — 6" seam tape
+  seamTapeCov:   100,    // lf covered per roll (basis: area/10 seam length + perimeter)
+  caulk:          11.87, // $/tube — in-seam caulk / lap sealant
+  caulkCov:       50,    // lf covered per tube
+  fasteners:     300.00, // $/bucket — mechanical fasteners & plates
+  fastenersCov: 1000,    // sf covered per bucket
+  termBar:         7.95, // $/ea — termination bar (wall-side edge)
+  termBarCov:     10,    // lf covered per piece
+  metalEdge:      21.73, // $/ea — metal edge / coping (open edge)
+  metalEdgeCov:   10,    // lf covered per piece
+  waterBlock:     94.23, // $/tube — water block sealant (total perimeter)
+  waterBlockCov:  20,    // lf covered per tube
+
+  // PENETRATIONS & JOB SUPPLIES
+  pipeBoot:       50.51, // $/ea — pipe boot flashing
+  sealerPocket:   94.23, // $/ea — pourable sealer pocket
+  suppliesKit:    45.16, // $/job — application tools & consumables (rollers, handle, brushes)
+
+  // WASTE & LABOR
+  waste:           0.05, // 5% waste factor (applied to membrane & cover board coverage)
+  labor:           4.00, // $/sf — flat roof labor rate
+};
+let FLAT_PRICES = DEFAULT_FLAT_PRICES;
+
 // ╔══════════════════════════════════════════════════════════════════════╗
 // ║                        END OF PRICES SECTION                        ║
 // ╚══════════════════════════════════════════════════════════════════════╝
@@ -594,6 +704,85 @@ function setSkyOp(op){
   document.getElementById('sklReflashOpts').style.display = op==='reflash'?'block':'none';
   document.getElementById('sklReplaceOpts').style.display = op==='replace'?'block':'none';
   onMeasureChange();
+}
+
+// ── SKYLIGHT REPLACE — repeating rows ───────────────────────────────────────
+// One row per skylight/model combo. A new blank row is appended automatically
+// as soon as the current last row gets a quantity > 0; nothing new is added
+// while the last row's quantity is 0 (blank).
+let sklReplaceRowCount = 0;
+
+const SKYLIGHT_MODEL_OPTIONS_HTML = `
+  <optgroup label="— M Series (30&quot; wide) —">
+    <option value="FS_M02">FS M02 — Fixed 30×30</option>
+    <option value="FS_M04">FS M04 — Fixed 30×38</option>
+    <option value="FS_M06">FS M06 — Fixed 30×46</option>
+    <option value="FS_M08">FS M08 — Fixed 30×54</option>
+    <option value="VS_M02">VS M02 — Manual Vent 30×30</option>
+    <option value="VS_M04" selected>VS M04 — Manual Vent 30×38</option>
+    <option value="VS_M06">VS M06 — Manual Vent 30×46</option>
+    <option value="VS_M08">VS M08 — Manual Vent 30×54</option>
+    <option value="VSS_M02">VSS M02 — Solar Vent 30×30</option>
+    <option value="VSS_M04">VSS M04 — Solar Vent 30×38</option>
+    <option value="VSS_M06">VSS M06 — Solar Vent 30×46</option>
+    <option value="VSS_M08">VSS M08 — Solar Vent 30×54</option>
+  </optgroup>
+  <optgroup label="— S Series (44&quot; wide) —">
+    <option value="FS_S01">FS S01 — Fixed 44×27</option>
+    <option value="FS_S06">FS S06 — Fixed 44×46</option>
+    <option value="VS_S06">VS S06 — Manual Vent 44×46</option>
+    <option value="VSS_S06">VSS S06 — Solar Vent 44×46</option>
+  </optgroup>`;
+
+function sklReplaceRowHTML(idx){
+  return `<div class="row2 sklReplaceRow" id="sklReplaceRow${idx}" style="margin-top:${idx>0?'8px':'0'}">
+    <div class="field"><label>Qty to replace${idx>0?' (skylight '+(idx+1)+')':''}</label>
+      <input id="mSkylightsReplace${idx}" type="number" min="0" placeholder="0" oninput="onSklReplaceQtyInput(${idx}, this.value)"/>
+    </div>
+    <div class="field"><label>Model</label>
+      <select id="skylightModel${idx}" onchange="onMeasureChange()">${SKYLIGHT_MODEL_OPTIONS_HTML}</select>
+    </div>
+  </div>`;
+}
+
+function renderSklReplaceRows(){
+  sklReplaceRowCount = 1;
+  const container = document.getElementById('sklReplaceRows');
+  if(container) container.innerHTML = sklReplaceRowHTML(0);
+}
+
+function onSklReplaceQtyInput(idx, val){
+  // Only append a new row when the LAST row just became non-zero.
+  if(idx === sklReplaceRowCount - 1 && parseFloat(val||0) > 0){
+    const container = document.getElementById('sklReplaceRows');
+    if(container){
+      container.insertAdjacentHTML('beforeend', sklReplaceRowHTML(sklReplaceRowCount));
+      sklReplaceRowCount++;
+    }
+  }
+  onMeasureChange();
+}
+
+// Returns { agg: {model: totalQty}, total: totalQty } across all replace rows
+function getSklReplaceAgg(){
+  const agg = {};
+  let total = 0;
+  if(S_skyOp === 'replace'){
+    for(let i=0; i<sklReplaceRowCount; i++){
+      const q = parseFloat(document.getElementById('mSkylightsReplace'+i)?.value||0);
+      if(q > 0){
+        const modelSel = document.getElementById('skylightModel'+i);
+        const model = modelSel ? modelSel.value : 'VS_M04';
+        agg[model] = (agg[model]||0) + q;
+        total += q;
+      }
+    }
+  }
+  return { agg, total };
+}
+
+function getSklReplaceTotalQty(){
+  return getSklReplaceAgg().total;
 }
 
 // Velux model price table [unit w/shade, flashing kit, label]
@@ -624,8 +813,8 @@ const DEFAULT_VELUX_MODELS = {
 };
 let VELUX_MODELS = DEFAULT_VELUX_MODELS;
 
-function getSkylightPrices(){
-  const model = document.getElementById('skylightModel')?.value || 'VS_M04';
+function getSkylightPricesForModel(model){
+  model = model || 'VS_M04';
   const m = VELUX_MODELS[model] || VELUX_MODELS['VS_M04'];
   const isS = model.includes('_S');
   return {
@@ -647,8 +836,7 @@ function calcMaterials() {
   const ridges = parseFloat(document.getElementById('mRidges')?.value||0);
   // Skylight quantities by operation
   const skylReflash  = S_skyOp==='reflash' ? parseFloat(document.getElementById('mSkylights')?.value||0) : 0;
-  const skylReplace  = S_skyOp==='replace' ? parseFloat(document.getElementById('mSkylightsReplace')?.value||0) : 0;
-  const skyl = skylReplace; // used for material calcs below
+  const { agg: skylReplaceAgg, total: skylReplace } = getSklReplaceAgg();
   const chim   = parseFloat(document.getElementById('mChimneys')?.value||0);
   const p      = MAT_PRICES;
 
@@ -685,10 +873,15 @@ function calcMaterials() {
     { name: 'Pipe Flashing 3"',           uom: 'ea',   qty: Math.max(0, 4 - skylReplace - skylReflash),     price: p.pipFlash     },
     // Reflash materials
     { name: 'Reflash Kit (generic)',       uom: 'ea',   qty: skylReflash,                                     price: 120            },
-    // Replace materials
-    { name: (() => { const sk = getSkylightPrices(); return sk.flashLabel; })(), uom: 'ea', qty: skyl,         price: (() => getSkylightPrices().flashing)()        },
+    // Replace materials — one unit line + one flashing-kit line per distinct model across all rows
+    ...Object.entries(skylReplaceAgg).flatMap(([model, qty]) => {
+      const sk = getSkylightPricesForModel(model);
+      return [
+        { name: sk.label,      uom: 'ea', qty, price: sk.unit },
+        { name: sk.flashLabel, uom: 'ea', qty, price: sk.flashing },
+      ];
+    }),
     { name: 'Lead Flashing 12"',          uom: 'rolls', qty: chim > 0 ? 1 : 0,                               price: p.leadFlashing },
-    { name: (() => { const sk = getSkylightPrices(); return sk.label; })(),      uom: 'ea', qty: skyl,         price: (() => getSkylightPrices().unit)()            },
 
   ].filter(m => m.qty > 0);
 
@@ -704,7 +897,7 @@ function calcGC(){
   if(!sq) return { dumpster:0, management:0, skylightMgmt:0, permit:0, total:0 };
 
   // Skylight replacements add 0.5 sq each to dumpster waste calc
-  const skylReplace = S_skyOp==='replace' ? parseFloat(document.getElementById('mSkylightsReplace')?.value||0) : 0;
+  const skylReplace = getSklReplaceTotalQty();
   const effectiveSq = sq + (skylReplace * 0.5);
 
   // Dumpster always applies — $1,000 per 50 sq (or fraction), min $1,000
@@ -734,6 +927,7 @@ function calcAll(){
 
   // Sales tax (optional)
   const matResult = calcMaterials();
+  const flatResult = calcFlatRoof();
   const taxCost = (S.includeTax && matResult) ? matResult.tax : 0;
 
   // Step 1: sum all hard costs (labor + materials + upgrades + dumpster + management)
@@ -764,7 +958,7 @@ function calcAll(){
 
   const discEl = document.getElementById('discAmt');
   if(discEl) discEl.textContent = S.discount > 0 ? `saving ${fmt(saving)}` : '';
-  return { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost };
+  return { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult };
 }
 
 function syncMarginInput(){
@@ -845,7 +1039,7 @@ function toggleTax(){
 
 
 function renderSummary(){
-  const { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost } = calcAll();
+  const { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult } = calcAll();
   const totalSq = getTotalSq();
   const chimneyQty = parseFloat(document.getElementById('mChimneys')?.value||0);
   const horizWallQty = parseFloat(document.getElementById('mHorizWalls')?.value||0);
@@ -860,9 +1054,11 @@ function renderSummary(){
   const rows = [
     ['Total squares', totalSq.toFixed(1)+' sq'],
     ['Roofing & materials', fmt(baseCost)],
+    flatResult ? ['Flat roof materials ('+flatResult.area.toFixed(0)+' sf)', fmt(flatResult.matSubtotal)] : null,
+    flatResult ? ['Flat roof labor', fmt(flatResult.labor)] : null,
     chimneyQty>0 ? ['Chimney labor ('+chimneyQty+'× $'+LABOR_RATES.chimney+')', fmt(chimneyQty*LABOR_RATES.chimney)] : null,
     (()=>{ const rf=S_skyOp==='reflash'?parseFloat(document.getElementById('mSkylights')?.value||0):0; return rf>0?['Skylight reflash labor ('+rf+'× $250)',fmt(rf*250)]:null; })(),
-    (()=>{ const rp=S_skyOp==='replace'?parseFloat(document.getElementById('mSkylightsReplace')?.value||0):0; return rp>0?['Skylight replace labor ('+rp+'× $450)',fmt(rp*450)]:null; })(),
+    (()=>{ const rp=getSklReplaceTotalQty(); return rp>0?['Skylight replace labor ('+rp+'× $450)',fmt(rp*450)]:null; })(),
     horizWallQty>0 ? ['Horiz. roofline walls ('+horizWallQty+'× $'+LABOR_RATES.horizWall+')', fmt(horizWallQty*LABOR_RATES.horizWall)] : null,
     dormerQty>0 ? ['Dormers ('+dormerQty+'× $'+LABOR_RATES.dormer+')', fmt(dormerQty*LABOR_RATES.dormer)] : null,
     cheekwallQty>0 ? ['Cheekwalls ('+cheekwallQty+'× $'+LABOR_RATES.cheekwall+')', fmt(cheekwallQty*LABOR_RATES.cheekwall)] : null,
@@ -907,6 +1103,32 @@ function renderSummary(){
         <div><div class="detail-name" style="font-weight:600">Total Materials</div></div>
         <div class="detail-prices"><div class="detail-sell">${fmt(matResult.total)}</div></div>
       </div>`;
+  }
+
+  // Flat roof / EPDM detail
+  const flatCard = document.getElementById('flatRoofCard');
+  if(flatResult && flatCard){
+    flatCard.style.display = 'block';
+    document.getElementById('flatRoofDetail').innerHTML =
+      flatResult.items.map(it=>`
+        <div class="detail-row">
+          <div><div class="detail-name">${it.name}</div><div class="detail-sub">${fmtQty(it.qty)} ${it.uom} × ${fmtDec(it.price,2)}</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmtDec(it.qty*it.price,2)}</div></div>
+        </div>`).join('') +
+      `<div class="detail-row" style="border-bottom:none">
+        <div><div class="detail-name" style="color:#888">Material Subtotal</div></div>
+        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(flatResult.matSubtotal)}</div></div>
+      </div>
+      <div class="detail-row" style="border-bottom:none">
+        <div><div class="detail-name" style="color:#888">Labor (${flatResult.area.toFixed(0)} sf × ${fmtDec(FLAT_PRICES.labor,2)}/sf)</div></div>
+        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(flatResult.labor)}</div></div>
+      </div>
+      <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
+        <div><div class="detail-name" style="font-weight:600">Total Flat Roof</div></div>
+        <div class="detail-prices"><div class="detail-sell">${fmt(flatResult.total)}</div></div>
+      </div>`;
+  } else if(flatCard){
+    flatCard.style.display = 'none';
   }
 
   // Upgrade detail
@@ -1476,6 +1698,7 @@ async function saveEstimateToSharePoint() {
 
 setMfg('GAF');
 updateAccessoryDropdowns();
+renderSklReplaceRows();
 goPage(1);
 initKPSPricing();
 
@@ -1502,7 +1725,7 @@ function getSafeFileName(str){
 }
 
 function collectData(){
-  const { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m } = calcAll();
+  const { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, flatResult } = calcAll();
   const matResult = calcMaterials();
   const sp = getShinglePrices();
   const name    = document.getElementById('projName')?.value||'Project';
@@ -1519,7 +1742,7 @@ function collectData(){
   const iw      = document.getElementById('iwProd')?.value||'';
   const disc    = S.discount;
   const dateStr = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  return { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, matResult,
+  return { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, matResult, flatResult,
     name, projectId, addr, units, notes, contact, phone, email, color, prod, ul, iw, disc, dateStr, sp };
 }
 
@@ -1575,6 +1798,14 @@ function generateCostSheet(d){
     ${S.high?`<tr><td>High Roof Surcharge</td><td style="text-align:center">${getTotalSq().toFixed(1)} sq</td><td style="text-align:right">${fmtDec(LABOR_RATES.highAdder,2)}/sq</td><td style="text-align:right"><b>${fmt(getTotalSq()*LABOR_RATES.highAdder)}</b></td></tr>`:''}
   `;
 
+  const flatRows = d.flatResult ? d.flatResult.items.map(it => `
+    <tr>
+      <td>${it.name}</td>
+      <td style="text-align:center">${fmtQty(it.qty)} ${it.uom}</td>
+      <td style="text-align:right">${fmtDec(it.price,2)}</td>
+      <td style="text-align:right"><b>${fmtDec(it.qty*it.price,2)}</b></td>
+    </tr>`).join('') : '';
+
   const gcRows = `
     ${d.gc.dumpster>0?`<tr><td>Dumpster</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.dumpster)}</b></td></tr>`:''}
     ${d.gc.management>0?`<tr><td>Project Management</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.management)}</b></td></tr>`:''}
@@ -1626,6 +1857,23 @@ function generateCostSheet(d){
         ${d.taxCost>0||S.includeTax?`<tr><td colspan="3" style="padding:5px 8px;text-align:right">Tax (6.25%)</td><td style="text-align:right;padding:5px 8px">${fmt(d.matResult?.tax||0)}</td></tr>`:''}
       </tbody>
     </table>
+
+    ${d.flatResult ? `
+    <!-- FLAT ROOF / EPDM TABLE -->
+    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0">FLAT ROOF / EPDM</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
+      <thead><tr style="background:#eee">
+        <th style="text-align:left;padding:5px 8px">Item</th>
+        <th style="text-align:center;padding:5px 8px">Qty</th>
+        <th style="text-align:right;padding:5px 8px">Unit Cost</th>
+        <th style="text-align:right;padding:5px 8px">Total</th>
+      </tr></thead>
+      <tbody>
+        ${flatRows}
+        <tr style="border-top:1px solid #ccc"><td colspan="3" style="padding:5px 8px;text-align:right;font-weight:600">Flat Roof Material Subtotal</td><td style="text-align:right;padding:5px 8px;font-weight:600">${fmt(d.flatResult.matSubtotal)}</td></tr>
+        <tr><td colspan="3" style="padding:5px 8px;text-align:right">Flat Roof Labor (${d.flatResult.area.toFixed(0)} sf × ${fmtDec(FLAT_PRICES.labor,2)}/sf)</td><td style="text-align:right;padding:5px 8px">${fmt(d.flatResult.labor)}</td></tr>
+      </tbody>
+    </table>` : ''}
 
     <!-- LABOR TABLE -->
     <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0">LABOR</div>
@@ -1709,6 +1957,7 @@ function generateProposal(d){
         <div>✓ Install ${d.iw||'ice & water shield'} at all eaves, valleys, and penetrations</div>
         <div>✓ Install ${mfgName} ${d.prod}${d.color?' in '+d.color:''} shingles</div>
         <div>✓ Install all flashing, drip edge, ridge vent, and hip & ridge cap</div>
+        ${d.flatResult?`<div>✓ Install fully-adhered EPDM flat roofing system (${d.flatResult.area.toFixed(0)} sf)${S.flatCoverBoard?' with cover board':''}</div>`:''}
         <div>✓ Full cleanup and haul-away of all debris</div>
         ${d.notes?`<div style="margin-top:6px;color:#555;font-style:italic">Notes: ${d.notes}</div>`:''}
       </div>
@@ -1737,15 +1986,16 @@ function generateProposal(d){
 function generateMaterialOrder(d){
   const mfg = S_mfg;
   const col = MFG_COLORS[mfg];
-  const mats = d.matResult ? d.matResult.mats : [];
+  const mats = (d.matResult ? d.matResult.mats : []).concat(d.flatResult ? d.flatResult.items : []);
   const matRows = mats.map((m,i) => `
     <tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
       <td style="padding:6px 8px">${m.name}</td>
-      <td style="text-align:center;padding:6px 8px">${m.qty}</td>
+      <td style="text-align:center;padding:6px 8px">${typeof m.qty==='number' && !Number.isInteger(m.qty) ? m.qty.toFixed(2) : m.qty}</td>
       <td style="text-align:center;padding:6px 8px">${m.uom}</td>
       <td style="text-align:right;padding:6px 8px">${fmtDec(m.price,2)}</td>
       <td style="text-align:right;padding:6px 8px"><b>${fmtDec(m.qty*m.price,2)}</b></td>
     </tr>`).join('');
+  const combinedMatSubtotal = (d.matResult?.subtotal||0) + (d.flatResult?.matSubtotal||0);
 
   return `
   <div style="max-width:750px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px">
@@ -1792,16 +2042,16 @@ function generateMaterialOrder(d){
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
       <tbody>
         <tr style="border-top:2px solid ${col.primary}">
-          <td colspan="4" style="padding:6px 8px;text-align:right;font-weight:600">Material Subtotal</td>
-          <td style="text-align:right;padding:6px 8px;font-weight:600">${fmt(d.matResult?.subtotal||0)}</td>
+          <td colspan="4" style="padding:6px 8px;text-align:right;font-weight:600">Material Subtotal${d.flatResult?' (incl. flat roof)':''}</td>
+          <td style="text-align:right;padding:6px 8px;font-weight:600">${fmt(combinedMatSubtotal)}</td>
         </tr>
         <tr>
-          <td colspan="4" style="padding:6px 8px;text-align:right">Tax (6.25%)</td>
+          <td colspan="4" style="padding:6px 8px;text-align:right">Tax (6.25%${d.flatResult?', sloped roofing materials only':''})</td>
           <td style="text-align:right;padding:6px 8px">${fmt(d.matResult?.tax||0)}</td>
         </tr>
         <tr style="background:${col.primary};color:#fff;font-weight:700;font-size:13px">
           <td colspan="4" style="padding:8px 8px;text-align:right">TOTAL WITH TAX</td>
-          <td style="text-align:right;padding:8px 8px">${fmt(d.matResult?.total||0)}</td>
+          <td style="text-align:right;padding:8px 8px">${fmt(combinedMatSubtotal + (d.matResult?.tax||0))}</td>
         </tr>
       </tbody>
     </table>
