@@ -269,7 +269,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
       <div id="flatRoofFields" style="display:none">
         <div class="row2">
-          <div class="field"><label>Flat Roof Area (SF)</label><input id="mFlatArea" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+          <div class="field"><label>Flat Roof Area (Squares)</label><input id="mFlatArea" type="number" min="0" step="0.1" placeholder="0" oninput="onMeasureChange()"/></div>
           <div class="field"><label>Wall-side Termination (LF)</label><input id="mFlatWallTerm" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
         </div>
         <div class="row2">
@@ -296,6 +296,56 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="card-title">Optional Upgrades</div>
       <p style="font-size:12px;color:#aaa;margin-bottom:12px;">Select upgrades and enter quantities. Sell prices include your margin.</p>
       <div id="upgradeList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">PVC Trim (Eaves &amp; Rakes)</div>
+      <div class="tog-group" style="margin-bottom:10px">
+        <div class="tog accent" id="togPvcTrim" onclick="togglePvcTrim(this)">Include PVC Trim</div>
+      </div>
+      <div id="pvcTrimFields" style="display:none">
+        <p style="font-size:11px;color:#aaa;margin-bottom:10px">Uses the Eaves/Rakes linear footage entered on Roof Measurements. Boards are 18' lengths; labor is $7.00/LF of eaves + rakes.</p>
+        <div class="row2">
+          <div class="field"><label>Eave Board Size</label>
+            <select id="mPvcEaveSize" onchange="if(S.page===4) renderSummary()">
+              <option value="1x3">1x3</option>
+              <option value="1x4">1x4</option>
+              <option value="1x6" selected>1x6</option>
+              <option value="1x8">1x8</option>
+              <option value="1x10">1x10</option>
+              <option value="1x12">1x12</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Rake Setup</label>
+            <div class="tog-group">
+              <div class="tog" id="togPvcRake2pc" onclick="togglePvcRake2pc(this)">2-Piece Rake</div>
+            </div>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field"><label id="pvcRake1Label">Rake Board Size</label>
+            <select id="mPvcRakeSize1" onchange="if(S.page===4) renderSummary()">
+              <option value="1x3">1x3</option>
+              <option value="1x4">1x4</option>
+              <option value="1x6" selected>1x6</option>
+              <option value="1x8">1x8</option>
+              <option value="1x10">1x10</option>
+              <option value="1x12">1x12</option>
+            </select>
+          </div>
+          <div class="field" id="pvcRakeSize2Field" style="display:none"><label>Rake Board Size (Piece 2)</label>
+            <select id="mPvcRakeSize2" onchange="if(S.page===4) renderSummary()">
+              <option value="1x3">1x3</option>
+              <option value="1x4">1x4</option>
+              <option value="1x6" selected>1x6</option>
+              <option value="1x8">1x8</option>
+              <option value="1x10">1x10</option>
+              <option value="1x12">1x12</option>
+            </select>
+          </div>
+        </div>
+        <p id="pvcPriceWarning" style="display:none;font-size:11px;color:#b3261e;margin-top:4px;">⚠ PVC board prices haven't been entered yet for one or more selected sizes — update DEFAULT_PVC_PRICES.sizes before quoting this to a client.</p>
+      </div>
     </div>
     <div class="card">
       <div class="card-title">Gross Profit Margin</div>
@@ -334,6 +384,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="card" id="flatRoofCard" style="display:none">
       <div class="card-title">Flat Roof / EPDM Detail</div>
       <div id="flatRoofDetail"></div>
+    </div>
+
+    <div class="card" id="pvcTrimCard" style="display:none">
+      <div class="card-title">PVC Trim Detail</div>
+      <div id="pvcTrimDetail"></div>
     </div>
 
     <div class="card" id="upgradeDetailCard" style="display:none">
@@ -413,6 +468,7 @@ const S = {
   page:1, steep:false, high:false,
   margin:30, discount:0, extraIW:false, includeTax:true,
   hasFlat:false, flatCoverBoard:false,
+  hasPvcTrim:false, pvcRake2pc:false,
 };
 
 function fmt(n){ return '$'+Math.round(n).toLocaleString(); }
@@ -438,6 +494,23 @@ function toggleFlatRoof(el){
   const fields = document.getElementById('flatRoofFields');
   if(fields) fields.style.display = S.hasFlat ? 'block' : 'none';
   onMeasureChange();
+}
+
+function togglePvcTrim(el){
+  S.hasPvcTrim = !S.hasPvcTrim;
+  el.classList.toggle('on', S.hasPvcTrim);
+  const fields = document.getElementById('pvcTrimFields');
+  if(fields) fields.style.display = S.hasPvcTrim ? 'block' : 'none';
+}
+
+function togglePvcRake2pc(el){
+  S.pvcRake2pc = !S.pvcRake2pc;
+  el.classList.toggle('on', S.pvcRake2pc);
+  const label = document.getElementById('pvcRake1Label');
+  if(label) label.textContent = S.pvcRake2pc ? 'Rake Board Size (Piece 1)' : 'Rake Board Size';
+  const field2 = document.getElementById('pvcRakeSize2Field');
+  if(field2) field2.style.display = S.pvcRake2pc ? 'block' : 'none';
+  if(S.page===4) renderSummary();
 }
 
 function goPage(n){
@@ -499,7 +572,9 @@ function getBaseCost(){
   const skylightLabor  = (skylReflashQty * 250) + (skylReplaceQty * 450);
   const flatResult = calcFlatRoof();
   const flatCost = flatResult ? flatResult.total : 0;
-  return labor + chimneyLabor + horizWallLabor + dormerLabor + cheekwallLabor + skylightLabor + matCost + flatCost;
+  const pvcResult = calcPvcTrim();
+  const pvcCost = pvcResult ? pvcResult.total : 0;
+  return labor + chimneyLabor + horizWallLabor + dormerLabor + cheekwallLabor + skylightLabor + matCost + flatCost + pvcCost;
 }
 
 function getUpgradeCost(){
@@ -521,9 +596,12 @@ function fmtQty(n){ return Number.isInteger(n) ? String(n) : n.toFixed(2); }
 
 function calcFlatRoof(){
   if(!S.hasFlat) return null;
-  const area = parseFloat(document.getElementById('mFlatArea')?.value||0);
-  if(!area) return null;
-  const sq = area / 100;
+  // Flat Roof Area is entered in squares (matches how EPDM/labor are quoted:
+  // $/roll per 5-sq roll, $/square labor) — convert to sf for the coverage math below.
+  const sqEntered = parseFloat(document.getElementById('mFlatArea')?.value||0);
+  if(!sqEntered) return null;
+  const area = sqEntered * 100;
+  const sq = sqEntered;
   const wallTerm       = parseFloat(document.getElementById('mFlatWallTerm')?.value||0);
   const openEdge       = parseFloat(document.getElementById('mFlatOpenEdge')?.value||0);
   const pipeBoots      = parseFloat(document.getElementById('mFlatPipeBoots')?.value||0);
@@ -556,6 +634,39 @@ function calcFlatRoof(){
   const labor = area * p.labor;
 
   return { area, sq, items, matSubtotal, labor, total: matSubtotal + labor };
+}
+
+// ── PVC TRIM (EAVES & RAKES) CALCULATIONS ───────────────────────────────────
+// Optional upgrade: new PVC trim boards along the eaves and, optionally, a
+// 2-piece rake setup. Reuses the Eaves (LF) / Rakes (LF) measurements already
+// entered on the Roof Measurements page — boards are 18' lengths.
+function calcPvcTrim(){
+  if(!S.hasPvcTrim) return null;
+  const eaves = parseFloat(document.getElementById('mEaves')?.value||0);
+  const rakes = parseFloat(document.getElementById('mRakes')?.value||0);
+  if(!eaves && !rakes) return null;
+  const p = PVC_PRICES;
+  const eaveSize  = document.getElementById('mPvcEaveSize')?.value  || '1x6';
+  const rakeSize1 = document.getElementById('mPvcRakeSize1')?.value || '1x6';
+  const rakeSize2 = document.getElementById('mPvcRakeSize2')?.value || '1x6';
+  const rake2pc = S.pvcRake2pc;
+  const eaveBoards = roundUp(eaves / p.boardLength);
+  const rakeBoards = roundUp(rakes / p.boardLength);
+
+  const items = [
+    eaves>0 ? { name:`Eave PVC Trim (${eaveSize}, 18' bd)`, uom:'pc', qty: eaveBoards, price: p.sizes[eaveSize]||0 } : null,
+    rakes>0 ? { name:`Rake PVC Trim (${rakeSize1}, 18' bd)${rake2pc?' — piece 1':''}`, uom:'pc', qty: rakeBoards, price: p.sizes[rakeSize1]||0 } : null,
+    (rakes>0 && rake2pc) ? { name:`Rake PVC Trim (${rakeSize2}, 18' bd) — piece 2`, uom:'pc', qty: rakeBoards, price: p.sizes[rakeSize2]||0 } : null,
+  ].filter(Boolean);
+
+  const matSubtotal = items.reduce((s,i)=>s + i.qty*i.price, 0);
+  const labor = (eaves + rakes) * p.labor;
+  const missingPricing = items.some(i=>!i.price);
+
+  const warnEl = document.getElementById('pvcPriceWarning');
+  if(warnEl) warnEl.style.display = missingPricing ? 'block' : 'none';
+
+  return { eaves, rakes, eaveSize, rakeSize1, rakeSize2, rake2pc, items, matSubtotal, labor, total: matSubtotal + labor, missingPricing };
 }
 
 
@@ -682,6 +793,25 @@ const DEFAULT_FLAT_PRICES = {
   labor:           4.00, // $/sf — flat roof labor rate
 };
 let FLAT_PRICES = DEFAULT_FLAT_PRICES;
+
+// ── PVC TRIM (EAVES & RAKES) PRICES ─────────────────────────────────────────
+// 1x3/1x4/1x6/1x8 confirmed by Mike 2026-09-01 (per 18' board). 1x10/1x12
+// still PLACEHOLDER — update (and remove this note) before quoting those
+// sizes on a real job; the app shows a warning on-screen when a selected
+// size has no price.
+const DEFAULT_PVC_PRICES = {
+  boardLength: 18,   // LF per board
+  labor:        7.00,// $/LF — eaves + rakes combined
+  sizes: {
+    '1x3':  26.41, // $/18' board · confirmed 2026-09-01
+    '1x4':  32.40, // $/18' board · confirmed 2026-09-01
+    '1x6':  50.99, // $/18' board · confirmed 2026-09-01
+    '1x8':  67.39, // $/18' board · confirmed 2026-09-01
+    '1x10':  0.00, // PLACEHOLDER — update with real invoice price per 18' board
+    '1x12':  0.00, // PLACEHOLDER
+  },
+};
+let PVC_PRICES = DEFAULT_PVC_PRICES;
 
 // ╔══════════════════════════════════════════════════════════════════════╗
 // ║                        END OF PRICES SECTION                        ║
@@ -928,6 +1058,7 @@ function calcAll(){
   // Sales tax (optional)
   const matResult = calcMaterials();
   const flatResult = calcFlatRoof();
+  const pvcResult = calcPvcTrim();
   const taxCost = (S.includeTax && matResult) ? matResult.tax : 0;
 
   // Step 1: sum all hard costs (labor + materials + upgrades + dumpster + management)
@@ -958,7 +1089,7 @@ function calcAll(){
 
   const discEl = document.getElementById('discAmt');
   if(discEl) discEl.textContent = S.discount > 0 ? `saving ${fmt(saving)}` : '';
-  return { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult };
+  return { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult, pvcResult };
 }
 
 function syncMarginInput(){
@@ -1039,7 +1170,7 @@ function toggleTax(){
 
 
 function renderSummary(){
-  const { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult } = calcAll();
+  const { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult, pvcResult } = calcAll();
   const totalSq = getTotalSq();
   const chimneyQty = parseFloat(document.getElementById('mChimneys')?.value||0);
   const horizWallQty = parseFloat(document.getElementById('mHorizWalls')?.value||0);
@@ -1056,6 +1187,8 @@ function renderSummary(){
     ['Roofing & materials', fmt(baseCost)],
     flatResult ? ['Flat roof materials ('+flatResult.area.toFixed(0)+' sf)', fmt(flatResult.matSubtotal)] : null,
     flatResult ? ['Flat roof labor', fmt(flatResult.labor)] : null,
+    pvcResult ? ['PVC trim materials', fmt(pvcResult.matSubtotal)] : null,
+    pvcResult ? ['PVC trim labor', fmt(pvcResult.labor)] : null,
     chimneyQty>0 ? ['Chimney labor ('+chimneyQty+'× $'+LABOR_RATES.chimney+')', fmt(chimneyQty*LABOR_RATES.chimney)] : null,
     (()=>{ const rf=S_skyOp==='reflash'?parseFloat(document.getElementById('mSkylights')?.value||0):0; return rf>0?['Skylight reflash labor ('+rf+'× $250)',fmt(rf*250)]:null; })(),
     (()=>{ const rp=getSklReplaceTotalQty(); return rp>0?['Skylight replace labor ('+rp+'× $450)',fmt(rp*450)]:null; })(),
@@ -1129,6 +1262,33 @@ function renderSummary(){
       </div>`;
   } else if(flatCard){
     flatCard.style.display = 'none';
+  }
+
+  // PVC trim detail
+  const pvcCard = document.getElementById('pvcTrimCard');
+  if(pvcResult && pvcCard){
+    pvcCard.style.display = 'block';
+    document.getElementById('pvcTrimDetail').innerHTML =
+      pvcResult.items.map(it=>`
+        <div class="detail-row">
+          <div><div class="detail-name">${it.name}</div><div class="detail-sub">${fmtQty(it.qty)} ${it.uom} × ${fmtDec(it.price,2)}${!it.price?' <span style="color:#b3261e">(price not set)</span>':''}</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmtDec(it.qty*it.price,2)}</div></div>
+        </div>`).join('') +
+      `<div class="detail-row" style="border-bottom:none">
+        <div><div class="detail-name" style="color:#888">Material Subtotal</div></div>
+        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(pvcResult.matSubtotal)}</div></div>
+      </div>
+      <div class="detail-row" style="border-bottom:none">
+        <div><div class="detail-name" style="color:#888">Labor (${(pvcResult.eaves+pvcResult.rakes).toFixed(0)} LF × ${fmtDec(PVC_PRICES.labor,2)}/LF)</div></div>
+        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(pvcResult.labor)}</div></div>
+      </div>
+      <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
+        <div><div class="detail-name" style="font-weight:600">Total PVC Trim</div></div>
+        <div class="detail-prices"><div class="detail-sell">${fmt(pvcResult.total)}</div></div>
+      </div>` +
+      (pvcResult.missingPricing ? `<div style="font-size:11px;color:#b3261e;padding:8px 0 0">⚠ One or more selected board sizes has no price set yet — update DEFAULT_PVC_PRICES.sizes before quoting this.</div>` : '');
+  } else if(pvcCard){
+    pvcCard.style.display = 'none';
   }
 
   // Upgrade detail
@@ -1725,7 +1885,7 @@ function getSafeFileName(str){
 }
 
 function collectData(){
-  const { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, flatResult } = calcAll();
+  const { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, flatResult, pvcResult } = calcAll();
   const matResult = calcMaterials();
   const sp = getShinglePrices();
   const name    = document.getElementById('projName')?.value||'Project';
@@ -1742,7 +1902,7 @@ function collectData(){
   const iw      = document.getElementById('iwProd')?.value||'';
   const disc    = S.discount;
   const dateStr = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  return { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, matResult, flatResult,
+  return { final, baseCost, upgCost, gcFixed, gc, totalCost, taxCost, gp, m, matResult, flatResult, pvcResult,
     name, projectId, addr, units, notes, contact, phone, email, color, prod, ul, iw, disc, dateStr, sp };
 }
 
@@ -1799,6 +1959,14 @@ function generateCostSheet(d){
   `;
 
   const flatRows = d.flatResult ? d.flatResult.items.map(it => `
+    <tr>
+      <td>${it.name}</td>
+      <td style="text-align:center">${fmtQty(it.qty)} ${it.uom}</td>
+      <td style="text-align:right">${fmtDec(it.price,2)}</td>
+      <td style="text-align:right"><b>${fmtDec(it.qty*it.price,2)}</b></td>
+    </tr>`).join('') : '';
+
+  const pvcRows = d.pvcResult ? d.pvcResult.items.map(it => `
     <tr>
       <td>${it.name}</td>
       <td style="text-align:center">${fmtQty(it.qty)} ${it.uom}</td>
@@ -1872,6 +2040,24 @@ function generateCostSheet(d){
         ${flatRows}
         <tr style="border-top:1px solid #ccc"><td colspan="3" style="padding:5px 8px;text-align:right;font-weight:600">Flat Roof Material Subtotal</td><td style="text-align:right;padding:5px 8px;font-weight:600">${fmt(d.flatResult.matSubtotal)}</td></tr>
         <tr><td colspan="3" style="padding:5px 8px;text-align:right">Flat Roof Labor (${d.flatResult.area.toFixed(0)} sf × ${fmtDec(FLAT_PRICES.labor,2)}/sf)</td><td style="text-align:right;padding:5px 8px">${fmt(d.flatResult.labor)}</td></tr>
+      </tbody>
+    </table>` : ''}
+
+    ${d.pvcResult ? `
+    <!-- PVC TRIM TABLE -->
+    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0">PVC TRIM (EAVES &amp; RAKES)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
+      <thead><tr style="background:#eee">
+        <th style="text-align:left;padding:5px 8px">Item</th>
+        <th style="text-align:center;padding:5px 8px">Qty</th>
+        <th style="text-align:right;padding:5px 8px">Unit Cost</th>
+        <th style="text-align:right;padding:5px 8px">Total</th>
+      </tr></thead>
+      <tbody>
+        ${pvcRows}
+        <tr style="border-top:1px solid #ccc"><td colspan="3" style="padding:5px 8px;text-align:right;font-weight:600">PVC Trim Material Subtotal</td><td style="text-align:right;padding:5px 8px;font-weight:600">${fmt(d.pvcResult.matSubtotal)}</td></tr>
+        <tr><td colspan="3" style="padding:5px 8px;text-align:right">PVC Trim Labor (${(d.pvcResult.eaves+d.pvcResult.rakes).toFixed(0)} LF × ${fmtDec(PVC_PRICES.labor,2)}/LF)</td><td style="text-align:right;padding:5px 8px">${fmt(d.pvcResult.labor)}</td></tr>
+        ${d.pvcResult.missingPricing?`<tr><td colspan="4" style="padding:5px 8px;color:#b3261e;font-size:10px">⚠ One or more selected board sizes has no price set yet in DEFAULT_PVC_PRICES.sizes</td></tr>`:''}
       </tbody>
     </table>` : ''}
 
@@ -1958,6 +2144,7 @@ function generateProposal(d){
         <div>✓ Install ${mfgName} ${d.prod}${d.color?' in '+d.color:''} shingles</div>
         <div>✓ Install all flashing, drip edge, ridge vent, and hip & ridge cap</div>
         ${d.flatResult?`<div>✓ Install fully-adhered EPDM flat roofing system (${d.flatResult.area.toFixed(0)} sf)${S.flatCoverBoard?' with cover board':''}</div>`:''}
+        ${d.pvcResult?`<div>✓ Install new PVC trim along eaves${d.pvcResult.rakes>0?' and rakes'+(d.pvcResult.rake2pc?' (2-piece)':''):''}</div>`:''}
         <div>✓ Full cleanup and haul-away of all debris</div>
         ${d.notes?`<div style="margin-top:6px;color:#555;font-style:italic">Notes: ${d.notes}</div>`:''}
       </div>
@@ -1986,7 +2173,7 @@ function generateProposal(d){
 function generateMaterialOrder(d){
   const mfg = S_mfg;
   const col = MFG_COLORS[mfg];
-  const mats = (d.matResult ? d.matResult.mats : []).concat(d.flatResult ? d.flatResult.items : []);
+  const mats = (d.matResult ? d.matResult.mats : []).concat(d.flatResult ? d.flatResult.items : []).concat(d.pvcResult ? d.pvcResult.items : []);
   const matRows = mats.map((m,i) => `
     <tr style="background:${i%2===0?'#fff':'#f9f9f9'}">
       <td style="padding:6px 8px">${m.name}</td>
@@ -1995,7 +2182,7 @@ function generateMaterialOrder(d){
       <td style="text-align:right;padding:6px 8px">${fmtDec(m.price,2)}</td>
       <td style="text-align:right;padding:6px 8px"><b>${fmtDec(m.qty*m.price,2)}</b></td>
     </tr>`).join('');
-  const combinedMatSubtotal = (d.matResult?.subtotal||0) + (d.flatResult?.matSubtotal||0);
+  const combinedMatSubtotal = (d.matResult?.subtotal||0) + (d.flatResult?.matSubtotal||0) + (d.pvcResult?.matSubtotal||0);
 
   return `
   <div style="max-width:750px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px">
@@ -2042,11 +2229,11 @@ function generateMaterialOrder(d){
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
       <tbody>
         <tr style="border-top:2px solid ${col.primary}">
-          <td colspan="4" style="padding:6px 8px;text-align:right;font-weight:600">Material Subtotal${d.flatResult?' (incl. flat roof)':''}</td>
+          <td colspan="4" style="padding:6px 8px;text-align:right;font-weight:600">Material Subtotal${(d.flatResult||d.pvcResult)?' (incl. '+[d.flatResult?'flat roof':null,d.pvcResult?'PVC trim':null].filter(Boolean).join(' + ')+')':''}</td>
           <td style="text-align:right;padding:6px 8px;font-weight:600">${fmt(combinedMatSubtotal)}</td>
         </tr>
         <tr>
-          <td colspan="4" style="padding:6px 8px;text-align:right">Tax (6.25%${d.flatResult?', sloped roofing materials only':''})</td>
+          <td colspan="4" style="padding:6px 8px;text-align:right">Tax (6.25%${(d.flatResult||d.pvcResult)?', sloped roofing materials only':''})</td>
           <td style="text-align:right;padding:6px 8px">${fmt(d.matResult?.tax||0)}</td>
         </tr>
         <tr style="background:${col.primary};color:#fff;font-weight:700;font-size:13px">
