@@ -1599,6 +1599,47 @@ function buildPricingFromRows(rawRows) {
   return out;
 }
 
+// Flat Roof / EPDM and PVC Trim only store their $ prices in the PricingCatalog
+// table (Category Material/Labor, ItemKey prefixed "flat"/"pvc") — coverage
+// rates (sf per roll, LF per board, etc.) are physical material constants that
+// aren't tracked there, so those always come from DEFAULT_FLAT_PRICES /
+// DEFAULT_PVC_PRICES regardless of sync. These helpers pull just the prices
+// back out of the already-merged MAT_PRICES/LABOR_RATES built by
+// buildPricingFromRows (flat/pvc rows land there via the generic
+// Material/Labor cases) and reshape them to match FLAT_PRICES / PVC_PRICES.
+const FLAT_PRICE_KEYS = ['membrane','coverBoard','primer','bondingAdh','sprayAdh','cleaner',
+                          'seamTape','caulk','fasteners','termBar','metalEdge','waterBlock',
+                          'pipeBoot','sealerPocket','suppliesKit'];
+const PVC_SIZE_KEYS = ['1x3','1x4','1x6','1x8','1x10','1x12'];
+
+function extractFlatPrices(matPrices, laborRates) {
+  const out = {};
+  FLAT_PRICE_KEYS.forEach(k => {
+    const ik = 'flat' + k[0].toUpperCase() + k.slice(1);
+    const v = Number(matPrices[ik]);
+    if (matPrices[ik] !== undefined && !isNaN(v)) out[k] = v;
+  });
+  const laborV = Number(laborRates['flatLabor']);
+  if (laborRates['flatLabor'] !== undefined && !isNaN(laborV)) out.labor = laborV;
+  return out;
+}
+
+function extractPvcPrices(matPrices, laborRates) {
+  const sizes = {};
+  PVC_SIZE_KEYS.forEach(s => {
+    const ik = 'pvcBoard' + s;
+    const v = Number(matPrices[ik]);
+    // Skip $0/placeholder sizes so DEFAULT_PVC_PRICES.sizes stays in effect for them
+    // (placeholder rows are also Active=FALSE in the sheet, so buildPricingFromRows
+    // already excludes them — this is just a second guard).
+    if (matPrices[ik] !== undefined && !isNaN(v) && v > 0) sizes[s] = v;
+  });
+  const out = { sizes };
+  const laborV = Number(laborRates['pvcLabor']);
+  if (laborRates['pvcLabor'] !== undefined && !isNaN(laborV)) out.labor = laborV;
+  return out;
+}
+
 // Minimum sanity check before trusting a fetched list over the built-in defaults.
 function isPricingUsable(built) {
   return ['GAF', 'CT', 'OC'].every(m => built.MFG_PRODUCTS[m].length > 0)
@@ -1642,6 +1683,18 @@ async function syncPricingFromGraph() {
                    OC:  built.IW_OPTIONS.OC.length  ? built.IW_OPTIONS.OC  : DEFAULT_IW_OPTIONS.OC };
     VELUX_MODELS = Object.keys(built.VELUX_MODELS).length ? built.VELUX_MODELS : DEFAULT_VELUX_MODELS;
     UPGRADES = built.UPGRADES.length ? built.UPGRADES : DEFAULT_UPGRADES;
+
+    // Flat Roof / EPDM and PVC Trim: merge synced $ prices over the defaults;
+    // coverage constants (sf/roll, LF/board, etc.) always stay the DEFAULT_ values
+    // since they aren't tracked in the pricing sheet — see extractFlatPrices/extractPvcPrices.
+    const flatSynced = extractFlatPrices(built.MAT_PRICES, built.LABOR_RATES);
+    FLAT_PRICES = Object.assign({}, DEFAULT_FLAT_PRICES, flatSynced);
+    const pvcSynced = extractPvcPrices(built.MAT_PRICES, built.LABOR_RATES);
+    PVC_PRICES = {
+      boardLength: DEFAULT_PVC_PRICES.boardLength,
+      labor: pvcSynced.labor !== undefined ? pvcSynced.labor : DEFAULT_PVC_PRICES.labor,
+      sizes: Object.assign({}, DEFAULT_PVC_PRICES.sizes, pvcSynced.sizes),
+    };
 
     const stamp = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     setOdStatus(`Prices: <strong>live from KPS Pricing</strong> · synced ${stamp}`);
