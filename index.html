@@ -109,6 +109,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .detail-sell{font-size:14px;font-weight:600;color:#1a1a2e;}
 .detail-cost{font-size:11px;color:#aaa;margin-top:1px;}
 
+/* SUMMARY PAGE QUICK NAV */
+.quick-nav{background:#fff;border-radius:14px;padding:0.875rem 1rem;margin:0.875rem 0.875rem 0;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
+.quick-nav-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:0.625rem;}
+.quick-nav-links{display:flex;flex-wrap:wrap;gap:6px;}
+.qn-link{padding:6px 12px;font-size:12px;border:1px solid #e0ddd8;border-radius:20px;cursor:pointer;background:#faf9f7;color:#555;white-space:nowrap;}
+.qn-link:active{background:#f0ede8;}
+.qn-action{background:#1a1a2e;color:#fff;border-color:#1a1a2e;font-weight:600;}
+
+/* ACCORDION CARDS (per-building / total materials / upgrades on Summary page) */
+.acc-header{display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;}
+.acc-header .acc-chevron{font-size:10px;color:#aaa;transition:transform 0.15s;flex-shrink:0;}
+.acc-card.open .acc-header .acc-chevron{transform:rotate(90deg);}
+.acc-header .card-title{margin-bottom:0;flex:1;}
+.acc-preview{font-size:14px;font-weight:600;color:#e97132;white-space:nowrap;}
+.acc-body{display:none;margin-top:0.875rem;}
+.acc-card.open .acc-body{display:block;}
+
 /* BUTTONS */
 .btn-main{display:block;width:calc(100% - 1.75rem);margin:1rem 0.875rem 0;padding:15px;background:#e97132;color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;letter-spacing:-0.2px;transition:all 0.15s;}
 .btn-main:active{transform:scale(0.98);}
@@ -122,10 +139,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* PRINT */
 @media print{
-  .hdr,.btn-main,.btn-back,.note{display:none!important;}
+  .hdr,.btn-main,.btn-back,.note,.quick-nav{display:none!important;}
   body{background:#fff;}
   .app{max-width:100%;}
   .card,.sum-card{margin:0 0 12pt;box-shadow:none;border:1px solid #ddd;}
+  /* Printing the live page (window.print()) should always show full detail,
+     regardless of which accordion sections are collapsed on screen. */
+  .acc-body{display:block!important;}
+  .acc-header .acc-chevron{display:none!important;}
 }
 </style>
 <!-- KPS App Suite shared sign-in — used to sync live pricing from the KPS Pricing SharePoint list -->
@@ -270,20 +291,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="sumRows"></div>
     </div>
 
+    <!-- Quick nav: jump links to each section below, plus expand/collapse all —
+         rebuilt each render since it depends on how many buildings/sections exist. -->
+    <div id="page4QuickNav"></div>
 
     <div id="buildingSummaries"></div>
 
-    <div class="card" id="totalMaterialsCard">
-      <div class="card-title">Total Materials — All Buildings</div>
-      <div id="totalMaterialsDetail"></div>
-    </div>
+    <div id="totalMaterialsWrap"></div>
 
-    <div class="card" id="upgradeDetailCard" style="display:none">
-      <div class="card-title">Optional Upgrades</div>
-      <div id="upgradeDetail"></div>
-    </div>
+    <div id="upgradeDetailWrap"></div>
 
-    <div class="card">
+    <div class="card" id="projInfoCard">
       <div class="card-title">Project Info</div>
       <div id="projDetail"></div>
     </div>
@@ -369,6 +387,33 @@ function newBuildingState(){
   return { extraIW:false, hasFlat:false, flatCoverBoard:false, hasPvcTrim:false, pvcRake2pc:false };
 }
 let BS = { 0: newBuildingState() };
+
+// ── SUMMARY PAGE ACCORDION STATE ────────────────────────────────────────────
+// Tracks open/closed state of each collapsible section on the Summary page
+// (per-building cards, Total Materials, Upgrades) across re-renders — renderSummary()
+// runs on every input change, so this must persist rather than reset each time.
+let ACC_STATE = {};
+function isAccOpen(key, defaultOpen){
+  if(!(key in ACC_STATE)) ACC_STATE[key] = defaultOpen;
+  return ACC_STATE[key];
+}
+function toggleAccordion(key){
+  ACC_STATE[key] = !ACC_STATE[key];
+  const el = document.getElementById(key);
+  if(el) el.classList.toggle('open', ACC_STATE[key]);
+}
+function setAllAccordions(open){
+  document.querySelectorAll('#page4 .acc-card').forEach(el=>{
+    ACC_STATE[el.id] = open;
+    el.classList.toggle('open', open);
+  });
+}
+function scrollToSection(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(el.classList.contains('acc-card') && !ACC_STATE[id]) toggleAccordion(id);
+  el.scrollIntoView({behavior:'smooth', block:'start'});
+}
 
 function fmt(n){ return '$'+Math.round(n).toLocaleString(); }
 function fmtDec(n,d=2){ return '$'+n.toFixed(d); }
@@ -1526,27 +1571,39 @@ function renderSummary(){
 
     const laborTotal = bd.labor + bd.chimneyLabor + bd.horizWallLabor + bd.dormerLabor + bd.cheekwallLabor + bd.skylightLabor;
 
-    return `<div class="card">
-      <div class="card-title">${bd.name} — Materials &amp; Labor</div>
-      <div class="detail-row"><div class="detail-name">Squares</div><div class="detail-prices"><div class="detail-sell">${bd.sq.toFixed(1)} sq</div></div></div>
-      ${matRows}
-      <div class="detail-row" style="border-bottom:none">
-        <div><div class="detail-name" style="color:#888">Sloped roofing material subtotal</div></div>
-        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.matResult?bd.matResult.subtotal:0)}</div></div>
+    // Collapsible per-building card — single-building estimates default open
+    // (it's the primary content); multi-building estimates default all
+    // collapsed so the page isn't a wall of line items, but each header still
+    // shows the subtotal so nothing is hidden at a glance.
+    const accId = 'bCard_'+bd.idx;
+    const open = isAccOpen(accId, numBuildings<=1);
+    return `<div class="card acc-card${open?' open':''}" id="${accId}">
+      <div class="acc-header" onclick="toggleAccordion('${accId}')">
+        <span class="acc-chevron">▸</span>
+        <div class="card-title" style="margin-bottom:0">${bd.name} — Materials &amp; Labor</div>
+        <span class="acc-preview">${fmt(bd.subtotal)}</span>
       </div>
-      ${flatBlock}
-      ${pvcBlock}
-      <div class="detail-row" style="border-bottom:none">
-        <div><div class="detail-name" style="color:#888">Labor subtotal (base + chimneys + walls + dormers + cheekwalls + skylights)</div></div>
-        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(laborTotal)}</div></div>
-      </div>
-      <div class="detail-row" style="border-bottom:none">
-        <div><div class="detail-name" style="color:#888">Material sales tax (6.25%)</div></div>
-        <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.taxCost)}</div></div>
-      </div>
-      <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
-        <div><div class="detail-name" style="font-weight:600">${bd.name} Subtotal (hard cost)</div></div>
-        <div class="detail-prices"><div class="detail-sell">${fmt(bd.subtotal)}</div></div>
+      <div class="acc-body">
+        <div class="detail-row"><div class="detail-name">Squares</div><div class="detail-prices"><div class="detail-sell">${bd.sq.toFixed(1)} sq</div></div></div>
+        ${matRows}
+        <div class="detail-row" style="border-bottom:none">
+          <div><div class="detail-name" style="color:#888">Sloped roofing material subtotal</div></div>
+          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.matResult?bd.matResult.subtotal:0)}</div></div>
+        </div>
+        ${flatBlock}
+        ${pvcBlock}
+        <div class="detail-row" style="border-bottom:none">
+          <div><div class="detail-name" style="color:#888">Labor subtotal (base + chimneys + walls + dormers + cheekwalls + skylights)</div></div>
+          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(laborTotal)}</div></div>
+        </div>
+        <div class="detail-row" style="border-bottom:none">
+          <div><div class="detail-name" style="color:#888">Material sales tax (6.25%)</div></div>
+          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.taxCost)}</div></div>
+        </div>
+        <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
+          <div><div class="detail-name" style="font-weight:600">${bd.name} Subtotal (hard cost)</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmt(bd.subtotal)}</div></div>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1557,18 +1614,22 @@ function renderSummary(){
   // ── COMBINED TOTAL MATERIALS (all buildings, one list) ────────────────────
   const combined = combineMaterials(buildings);
   const combinedSubtotal = combined.reduce((s,i)=>s+i.qty*i.price,0);
-  const totalMatCard = document.getElementById('totalMaterialsCard');
-  const totalMatEl = document.getElementById('totalMaterialsDetail');
-  if(totalMatEl){
-    totalMatEl.innerHTML = (combined.length ? combined.map(m=>`
+  const totalMatWrap = document.getElementById('totalMaterialsWrap');
+  if(totalMatWrap){
+    const tmOpen = isAccOpen('totalMaterialsCard', false);
+    const tmRows = combined.length ? combined.map(m=>`
         <div class="detail-row">
           <div><div class="detail-name">${m.name}</div><div class="detail-sub">${fmtQty(m.qty)} ${m.uom} × ${fmtDec(m.price,2)}</div></div>
           <div class="detail-prices"><div class="detail-sell">${fmtDec(m.qty*m.price,2)}</div></div>
-        </div>`).join('') : '<div class="detail-sub" style="padding:6px 0">No materials yet — enter measurements on Roof Measurements.</div>') +
-      `<div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
-        <div><div class="detail-name" style="font-weight:600">Total Materials — All Buildings</div></div>
-        <div class="detail-prices"><div class="detail-sell">${fmt(combinedSubtotal)}</div></div>
-      </div>`;
+        </div>`).join('') : '<div class="detail-sub" style="padding:6px 0">No materials yet — enter measurements on Roof Measurements.</div>';
+    totalMatWrap.innerHTML = `<div class="card acc-card${tmOpen?' open':''}" id="totalMaterialsCard">
+      <div class="acc-header" onclick="toggleAccordion('totalMaterialsCard')">
+        <span class="acc-chevron">▸</span>
+        <div class="card-title" style="margin-bottom:0">Total Materials — All Buildings (${combined.length} items)</div>
+        <span class="acc-preview">${fmt(combinedSubtotal)}</span>
+      </div>
+      <div class="acc-body">${tmRows}</div>
+    </div>`;
   }
 
   // Upgrade detail
@@ -1594,9 +1655,39 @@ function renderSummary(){
     </div>`;
   }).filter(Boolean).join('');
 
-  const upgradeCard = document.getElementById('upgradeDetailCard');
-  if(upgLines){ upgradeCard.style.display='block'; document.getElementById('upgradeDetail').innerHTML=upgLines; }
-  else upgradeCard.style.display='none';
+  const upgradeWrap = document.getElementById('upgradeDetailWrap');
+  if(upgradeWrap){
+    if(upgLines){
+      const upOpen = isAccOpen('upgradeDetailCard', true);
+      upgradeWrap.innerHTML = `<div class="card acc-card${upOpen?' open':''}" id="upgradeDetailCard">
+        <div class="acc-header" onclick="toggleAccordion('upgradeDetailCard')">
+          <span class="acc-chevron">▸</span>
+          <div class="card-title" style="margin-bottom:0">Optional Upgrades</div>
+          <span class="acc-preview">${fmt(upgCost)}</span>
+        </div>
+        <div class="acc-body" id="upgradeDetail">${upgLines}</div>
+      </div>`;
+    } else {
+      upgradeWrap.innerHTML = '';
+    }
+  }
+
+  // ── QUICK NAV — jump links to each section + expand/collapse all ──────────
+  const navEl = document.getElementById('page4QuickNav');
+  if(navEl){
+    const navLinks = [
+      ...buildings.map(bd=>`<span class="qn-link" onclick="scrollToSection('bCard_${bd.idx}')">${bd.name}</span>`),
+      `<span class="qn-link" onclick="scrollToSection('totalMaterialsCard')">Total Materials</span>`,
+      upgLines ? `<span class="qn-link" onclick="scrollToSection('upgradeDetailCard')">Upgrades</span>` : '',
+      `<span class="qn-link" onclick="scrollToSection('projInfoCard')">Project Info</span>`,
+      `<span class="qn-link qn-action" onclick="setAllAccordions(true)">Expand All</span>`,
+      `<span class="qn-link qn-action" onclick="setAllAccordions(false)">Collapse All</span>`,
+    ].filter(Boolean).join('');
+    navEl.innerHTML = `<div class="quick-nav">
+      <div class="quick-nav-title">Jump to</div>
+      <div class="quick-nav-links">${navLinks}</div>
+    </div>`;
+  }
 
   // Project info
   const name = document.getElementById('projName').value||'—';
