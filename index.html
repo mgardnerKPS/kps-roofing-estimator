@@ -797,9 +797,15 @@ function getBaseCost(b){
 }
 
 // Upgrades are property-wide (Page 3), not per-building.
+// Only checked upgrades count toward cost — a quantity value left in a
+// hidden/unchecked row (e.g. the auto-filled warranty qty, or a qty typed
+// in and then unchecked) must NOT contribute, so checkbox state gates this
+// before quantity is even looked at.
 function getUpgradeCost(){
   let total = 0;
   UPGRADES.forEach(u=>{
+    const chk = document.getElementById('uchk_'+u.id);
+    if(!chk || !chk.classList.contains('on')) return;
     const qty = parseFloat(document.getElementById('uqty_'+u.id)?.value||0);
     if(!qty) return;
     const uqty = u.id==='warranty' ? getAggTotalSq() : qty;
