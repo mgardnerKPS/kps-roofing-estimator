@@ -172,7 +172,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="od-text" id="odText">Prices: <strong>built-in defaults</strong></div>
       <div class="od-action" id="odAction" onclick="connectKPSPricing()">Connect to KPS Pricing →</div>
     </div>
-  </div>
+  <!-- (.app stays open here — it wraps the header AND all four pages below,
+       down to its matching close at the end of Page 4. An extra stray
+       </div> used to close it right after the header instead, which made
+       #page1-#page4 become top-level siblings of .app rather than children
+       of it. That meant doPrint()'s "hide .app for printing" call had no
+       effect on the actual page content, so window.print() during a Cost
+       Sheet / Proposal / Material Order export printed the live Summary
+       page (still visible) ahead of the sheet itself. See the .app close
+       just after Page 4 below for the other half of this fix.) -->
 
   <!-- PAGE 1: PROJECT INFO -->
   <div id="page1">
