@@ -24,6 +24,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .od-text.warn strong{color:#e9a24d;}
 .od-action{font-size:11px;color:#e97132;font-weight:600;cursor:pointer;margin-top:2px;user-select:none;}
 .od-action:active{opacity:0.7;}
+.sf-row{display:flex;gap:8px;margin-top:10px;}
+.sf-btn{flex:1;text-align:center;font-size:11px;font-weight:600;color:#fff;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);border-radius:8px;padding:7px 8px;cursor:pointer;user-select:none;-webkit-user-select:none;}
+.sf-btn:active{background:rgba(255,255,255,0.22);}
 
 /* CARDS */
 .card{background:#fff;border-radius:14px;padding:1.125rem 1.25rem;margin:0.875rem 0.875rem 0;box-shadow:0 1px 3px rgba(0,0,0,0.06);}
@@ -171,6 +174,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
       <div class="od-text" id="odText">Prices: <strong>built-in defaults</strong></div>
       <div class="od-action" id="odAction" onclick="connectKPSPricing()">Connect to KPS Pricing →</div>
+      <div class="sf-row">
+        <div class="sf-btn" onclick="saveProjectFile()">💾 Save Project</div>
+        <div class="sf-btn" onclick="promptOpenProjectFile()">📂 Open Project</div>
+        <input type="file" id="openFileInput" accept=".json,application/json" style="display:none" onchange="handleOpenFileSelected(event)"/>
+      </div>
     </div>
   <!-- (.app stays open here — it wraps the header AND all four pages below,
        down to its matching close at the end of Page 4. An extra stray
@@ -2806,6 +2814,238 @@ function generatePDF(type){
   } else if(type === 'order'){
     openPrintWindow(generateMaterialOrder(d), `MaterialOrder_${proj}_${mfgSafe}_${date}`);
   }
+}
+
+// ╔══════════════════════════════════════════════════════════════════════╗
+// ║  SAVE / OPEN PROJECT FILE                                            ║
+// ║  Serializes every input on Pages 1-3 (project info, per-building     ║
+// ║  measurements, upgrades, pricing) to a .json file the user can       ║
+// ║  download and reopen later to pick up exactly where they left off.   ║
+// ║  Page 4's numbers are never saved — they're always re-derived from   ║
+// ║  the saved inputs plus whatever pricing is active when it's reopened.║
+// ╚══════════════════════════════════════════════════════════════════════╝
+const SAVE_FILE_FORMAT = 1;
+
+function gv(id){ const el = document.getElementById(id); return el ? el.value : ''; }
+function sv(id, val){ const el = document.getElementById(id); if(el && val!==undefined && val!==null) el.value = val; }
+
+// Flips a toggle button (and runs its normal click handler) only if it isn't
+// already in the target state — the toggleXxx() functions all flip current
+// state rather than set it directly, so restoring saved data has to go
+// through the same handler to keep side effects (shown/hidden fields, etc.)
+// in sync rather than just stamping the "on" class on directly.
+function setToggleTo(el, targetOn, flipFn){
+  if(!el) return;
+  if(el.classList.contains('on') !== !!targetOn) flipFn();
+}
+
+function collectBuildingState(b){
+  const rows = [];
+  for(let i=0; i<(sklReplaceRowCount[b]||0); i++){
+    rows.push({ qty: gv('mSkylightsReplace_b'+b+'_r'+i), model: gv('skylightModel_b'+b+'_r'+i) });
+  }
+  return {
+    name: BUILDING_NAMES[b] || ('Building '+(b+1)),
+    sq: gv('mSq_b'+b), valleys: gv('mValleys_b'+b), rakes: gv('mRakes_b'+b), eaves: gv('mEaves_b'+b),
+    flashing: gv('mFlashing_b'+b), stepFlashing: gv('mStepFlashing_b'+b), hips: gv('mHips_b'+b), ridges: gv('mRidges_b'+b),
+    skyOp: S_skyOp[b] || 'none',
+    sklReflashQty: gv('mSkylights_b'+b),
+    sklReplaceRows: rows,
+    chimneys: gv('mChimneys_b'+b), horizWalls: gv('mHorizWalls_b'+b), dormers: gv('mDormers_b'+b), cheekwalls: gv('mCheekwalls_b'+b),
+    extraIW: !!(BS[b] && BS[b].extraIW),
+    hasFlat: !!(BS[b] && BS[b].hasFlat),
+    flatArea: gv('mFlatArea_b'+b), flatWallTerm: gv('mFlatWallTerm_b'+b), flatOpenEdge: gv('mFlatOpenEdge_b'+b),
+    flatPipeBoots: gv('mFlatPipeBoots_b'+b), flatSealerPockets: gv('mFlatSealerPockets_b'+b),
+    flatCoverBoard: !!(BS[b] && BS[b].flatCoverBoard),
+    hasPvcTrim: !!(BS[b] && BS[b].hasPvcTrim),
+    pvcEaveSize: gv('mPvcEaveSize_b'+b),
+    pvcRake2pc: !!(BS[b] && BS[b].pvcRake2pc),
+    pvcRakeSize1: gv('mPvcRakeSize1_b'+b), pvcRakeSize2: gv('mPvcRakeSize2_b'+b),
+  };
+}
+
+function collectUpgradeState(){
+  const out = {};
+  UPGRADES.forEach(u=>{
+    const chk = document.getElementById('uchk_'+u.id);
+    const entry = { checked: !!(chk && chk.classList.contains('on')), qty: gv('uqty_'+u.id) };
+    if(isGutterUpgrade(u.id)){
+      entry.color = gv('ugutterColor_'+u.id);
+      entry.wedges = !!document.getElementById('ugutterWedges_'+u.id)?.classList.contains('on');
+      entry.hangers = !!document.getElementById('ugutterHangers_'+u.id)?.classList.contains('on');
+    }
+    out[u.id] = entry;
+  });
+  return out;
+}
+
+function collectFullState(){
+  const buildings = [];
+  for(let b=0; b<numBuildings; b++) buildings.push(collectBuildingState(b));
+  return {
+    __kpsRoofingSave: true,
+    format: SAVE_FILE_FORMAT,
+    savedAt: new Date().toISOString(),
+    project: {
+      projName: gv('projName'), projectId: gv('projectId'), projAddr: gv('projAddr'),
+      projCity: gv('projCity'), projState: gv('projState'), numUnits: gv('numUnits'),
+      contactName: gv('contactName'), contactPhone: gv('contactPhone'), contactEmail: gv('contactEmail'),
+      projNotes: gv('projNotes'),
+      numBuildings,
+      mfg: S_mfg, shingleProd: gv('shingleProd'), shingleColor: gv('shingleColor'),
+      underlaymentProd: gv('underlaymentProd'), iwProd: gv('iwProd'),
+      steep: S.steep, high: S.high,
+    },
+    buildings,
+    upgrades: collectUpgradeState(),
+    pricing: {
+      margin: gv('marginPct'), discount: gv('discPct'),
+      mgmtOverride: S.mgmtOverride, mgmtDays: gv('mgmtDaysInput'),
+      includeTax: S.includeTax,
+    },
+  };
+}
+
+function downloadJSON(obj, filename){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+function saveProjectFile(){
+  const data = collectFullState();
+  const proj = getSafeFileName(gv('projName') || 'KPS-Estimate');
+  downloadJSON(data, `${proj}_${getDateStr()}.kpsest.json`);
+}
+
+function restoreSklReplaceRows(b, rows){
+  const container = document.getElementById('sklReplaceRows_b'+b);
+  if(!container) return;
+  const list = (rows && rows.length) ? rows : [{qty:'', model:''}];
+  container.innerHTML = list.map((r,idx)=>sklReplaceRowHTML(b, idx)).join('');
+  sklReplaceRowCount[b] = list.length;
+  list.forEach((r,idx)=>{
+    sv('mSkylightsReplace_b'+b+'_r'+idx, r.qty);
+    if(r.model) sv('skylightModel_b'+b+'_r'+idx, r.model);
+  });
+}
+
+function applyBuildingState(b, bd){
+  if(!bd) return;
+  BUILDING_NAMES[b] = bd.name || ('Building '+(b+1));
+  sv('bName_b'+b, BUILDING_NAMES[b]);
+  sv('mSq_b'+b, bd.sq); sv('mValleys_b'+b, bd.valleys); sv('mRakes_b'+b, bd.rakes); sv('mEaves_b'+b, bd.eaves);
+  sv('mFlashing_b'+b, bd.flashing); sv('mStepFlashing_b'+b, bd.stepFlashing); sv('mHips_b'+b, bd.hips); sv('mRidges_b'+b, bd.ridges);
+
+  setSkyOp(b, bd.skyOp || 'none');
+  sv('mSkylights_b'+b, bd.sklReflashQty);
+  restoreSklReplaceRows(b, bd.sklReplaceRows);
+
+  sv('mChimneys_b'+b, bd.chimneys); sv('mHorizWalls_b'+b, bd.horizWalls); sv('mDormers_b'+b, bd.dormers); sv('mCheekwalls_b'+b, bd.cheekwalls);
+
+  setToggleTo(document.getElementById('togExtraIW_b'+b), bd.extraIW, ()=>toggleExtraIW(b, document.getElementById('togExtraIW_b'+b)));
+  setToggleTo(document.getElementById('togFlatRoof_b'+b), bd.hasFlat, ()=>toggleFlatRoof(b, document.getElementById('togFlatRoof_b'+b)));
+
+  sv('mFlatArea_b'+b, bd.flatArea); sv('mFlatWallTerm_b'+b, bd.flatWallTerm); sv('mFlatOpenEdge_b'+b, bd.flatOpenEdge);
+  sv('mFlatPipeBoots_b'+b, bd.flatPipeBoots); sv('mFlatSealerPockets_b'+b, bd.flatSealerPockets);
+  setToggleTo(document.getElementById('togCoverBoard_b'+b), bd.flatCoverBoard, ()=>toggleBuildingState(b,'flatCoverBoard', document.getElementById('togCoverBoard_b'+b)));
+
+  setToggleTo(document.getElementById('togPvcTrim_b'+b), bd.hasPvcTrim, ()=>togglePvcTrim(b, document.getElementById('togPvcTrim_b'+b)));
+  sv('mPvcEaveSize_b'+b, bd.pvcEaveSize);
+  setToggleTo(document.getElementById('togPvcRake2pc_b'+b), bd.pvcRake2pc, ()=>togglePvcRake2pc(b, document.getElementById('togPvcRake2pc_b'+b)));
+  sv('mPvcRakeSize1_b'+b, bd.pvcRakeSize1); sv('mPvcRakeSize2_b'+b, bd.pvcRakeSize2);
+}
+
+function applyUpgradeState(upgrades){
+  if(!upgrades) return;
+  UPGRADES.forEach(u=>{
+    const saved = upgrades[u.id];
+    if(!saved) return;
+    const chk = document.getElementById('uchk_'+u.id);
+    const block = document.getElementById('uqtyblock_'+u.id);
+    if(chk) chk.classList.toggle('on', !!saved.checked);
+    if(block) block.classList.toggle('show', !!saved.checked);
+    if(u.id !== 'warranty') sv('uqty_'+u.id, saved.qty);
+    if(isGutterUpgrade(u.id)){
+      if(saved.color) sv('ugutterColor_'+u.id, saved.color);
+      document.getElementById('ugutterWedges_'+u.id)?.classList.toggle('on', !!saved.wedges);
+      document.getElementById('ugutterHangers_'+u.id)?.classList.toggle('on', !!saved.hangers);
+    }
+  });
+}
+
+function applyFullState(data){
+  if(!data || typeof data !== 'object' || !data.project || !Array.isArray(data.buildings)){
+    alert("That file doesn't look like a saved KPS Roofing Estimator project.");
+    return;
+  }
+  const p = data.project;
+
+  sv('projName', p.projName); sv('projectId', p.projectId); sv('projAddr', p.projAddr);
+  sv('projCity', p.projCity); sv('projState', p.projState); sv('numUnits', p.numUnits);
+  sv('contactName', p.contactName); sv('contactPhone', p.contactPhone); sv('contactEmail', p.contactEmail);
+  sv('projNotes', p.projNotes);
+  projectIdDirty = true; // keep suggestProjectId() from overwriting the loaded Project ID later
+
+  numBuildings = Math.max(1, parseInt(p.numBuildings, 10) || data.buildings.length || 1);
+  sv('numBuildings', numBuildings);
+  renderBuildings();
+
+  if(p.mfg) setMfg(p.mfg);
+  sv('shingleProd', p.shingleProd);
+  sv('shingleColor', p.shingleColor);
+  sv('underlaymentProd', p.underlaymentProd);
+  sv('iwProd', p.iwProd);
+
+  setToggleTo(document.getElementById('togSteep'), p.steep, ()=>toggleState('steep', document.getElementById('togSteep')));
+  setToggleTo(document.getElementById('togHigh'),  p.high,  ()=>toggleState('high',  document.getElementById('togHigh')));
+
+  for(let b=0; b<numBuildings; b++) applyBuildingState(b, data.buildings[b]);
+
+  // Upgrade checkboxes/qty inputs live in a Page-3-only DOM list — build it
+  // before trying to restore checked/qty state onto it.
+  renderUpgrades();
+  applyUpgradeState(data.upgrades);
+
+  const pr = data.pricing || {};
+  sv('marginPct', pr.margin || 30);
+  setMarginFromInput();
+  sv('discPct', pr.discount || 0);
+  setToggleTo(document.getElementById('togMgmtOverride'), pr.mgmtOverride, ()=>toggleMgmtOverride(document.getElementById('togMgmtOverride')));
+  if(pr.mgmtOverride) sv('mgmtDaysInput', pr.mgmtDays);
+  const wantTax = pr.includeTax !== false; // default true if the save predates this field
+  if(S.includeTax !== wantTax) toggleTax();
+
+  onMeasureChange();
+  refreshUpgrades();
+  updateMgmtEstimateDisplay();
+  goPage(1);
+  alert('Project loaded' + (p.projName ? ': ' + p.projName : '') + (data.savedAt ? ('\nSaved ' + new Date(data.savedAt).toLocaleString()) : ''));
+}
+
+function promptOpenProjectFile(){
+  if(!confirm('Opening a project file will replace everything currently filled in. Continue?')) return;
+  document.getElementById('openFileInput').click();
+}
+
+function handleOpenFileSelected(evt){
+  const file = evt.target.files && evt.target.files[0];
+  evt.target.value = ''; // reset so selecting the same file again still fires onchange
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try { data = JSON.parse(reader.result); }
+    catch(e){ alert("Could not read that file — it doesn't look like valid project data."); return; }
+    applyFullState(data);
+  };
+  reader.onerror = () => alert('Could not read that file.');
+  reader.readAsText(file);
 }
 
 </script>
