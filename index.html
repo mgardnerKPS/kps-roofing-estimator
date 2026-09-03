@@ -76,8 +76,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .upg-qty{margin-top:8px;display:none;}
 .upg-qty.show{display:block;}
 .upg-qty label{font-size:12px;color:#888;display:block;margin-bottom:4px;}
-.upg-qty input{width:100%;padding:8px 10px;font-size:14px;border:1px solid #e0ddd8;border-radius:8px;background:#faf9f7;}
+.upg-qty input,.upg-qty select{width:100%;padding:8px 10px;font-size:14px;border:1px solid #e0ddd8;border-radius:8px;background:#faf9f7;}
 .upg-sell{font-size:12px;color:#e97132;font-weight:500;margin-top:4px;}
+.upg-addon-label{font-size:12px;color:#888;display:block;margin:10px 0 4px;}
 
 /* MARGIN SELECTOR */
 .margin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
@@ -226,6 +227,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="upgradeList"></div>
     </div>
     <div class="card">
+      <div class="card-title">Project Management</div>
+      <p style="font-size:12px;color:#aaa;margin-bottom:12px;">Auto-estimated at 1 day per 50 squares (all buildings + flat roof combined), min 1 day. Override with an exact day count if the schedule is already known.</p>
+      <div class="discount-row" style="padding-top:0;border-top:none;">
+        <label>Auto estimate:</label>
+        <span id="mgmtAutoDisplay" style="font-size:13px;color:#555;">—</span>
+      </div>
+      <div class="tog-group" style="margin:10px 0;">
+        <div class="tog accent" id="togMgmtOverride" onclick="toggleMgmtOverride(this)">Manual override</div>
+      </div>
+      <div class="discount-row" id="mgmtDaysRow" style="display:none;">
+        <label>Management days:</label>
+        <input class="disc-input" id="mgmtDaysInput" type="number" min="0" step="0.5" value="1" oninput="updateMgmtEstimateDisplay(); if(S.page===4) renderSummary();"/>
+        <span style="font-size:13px;color:#555;">days</span>
+      </div>
+    </div>
+    <div class="card">
       <div class="card-title">Gross Profit Margin</div>
       <div class="discount-row" style="padding-top:0;border-top:none;">
         <label>Gross margin:</label>
@@ -322,8 +339,8 @@ function suggestProjectId(){
 
 const DEFAULT_UPGRADES = [
   {id:'iw',       name:'Additional I&W along eaves',               unitCost:6,   uom:'LF',      label:'Linear feet of eaves'},
-  {id:'gutter_c', name:'Commercial gutters & downspouts (white)',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet'},
-  {id:'gutter_r', name:'Residential gutters & downspouts (white)',  unitCost:19,  uom:'LF',      label:'Total gutter linear feet'},
+  {id:'gutter_c', name:'Commercial gutters & downspouts',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet'},
+  {id:'gutter_r', name:'Residential gutters & downspouts',  unitCost:19,  uom:'LF',      label:'Total gutter linear feet'},
   {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls'},
   {id:'dorm',     name:'Siding removal/reinstall — dormers',        unitCost:450, uom:'dormer',  label:'Number of dormers'},
   {id:'warranty', name:'SureStart 5-star warranty',                  unitCost:20,  uom:'sq',      label:'Squares (auto-filled)'},
@@ -337,6 +354,7 @@ let UPGRADES = DEFAULT_UPGRADES;
 const S = {
   page:1, steep:false, high:false,
   margin:30, discount:0, includeTax:true,
+  mgmtOverride:false,
 };
 
 // ── MULTI-BUILDING STATE ────────────────────────────────────────────────────
@@ -370,6 +388,40 @@ function toggleBuildingState(b, key, el){
   BS[b][key] = !BS[b][key];
   el.classList.toggle('on', BS[b][key]);
   if(S.page===4) renderSummary();
+}
+
+// Project management day count/override (property-wide) ───────────────────
+function toggleMgmtOverride(el){
+  S.mgmtOverride = !S.mgmtOverride;
+  el.classList.toggle('on', S.mgmtOverride);
+  const row = document.getElementById('mgmtDaysRow');
+  if(row) row.style.display = S.mgmtOverride ? 'flex' : 'none';
+  if(S.mgmtOverride){
+    // Seed the override field with the current auto estimate so it's a
+    // sensible starting point rather than jumping to 1 day.
+    const input = document.getElementById('mgmtDaysInput');
+    if(input) input.value = mgmtAutoDays();
+  }
+  updateMgmtEstimateDisplay();
+  if(S.page===4) renderSummary();
+}
+
+function mgmtAutoDays(){
+  const sq = getAggTotalSq() + getAggFlatSq();
+  return sq ? Math.max(1, Math.ceil(sq / 50)) : 0;
+}
+
+function fmtDays(days){
+  if(!days) return '0 days';
+  const wks = days / 5;
+  const dPart = (Number.isInteger(days) ? days : days.toFixed(1)) + (days===1 ? ' day' : ' days');
+  const wPart = wks >= 1 ? ` (~${Number.isInteger(wks) ? wks : wks.toFixed(1)} work week${wks===1?'':'s'})` : '';
+  return dPart + wPart;
+}
+
+function updateMgmtEstimateDisplay(){
+  const el = document.getElementById('mgmtAutoDisplay');
+  if(el) el.textContent = fmtDays(mgmtAutoDays());
 }
 
 function toggleExtraIW(b, el){
@@ -607,7 +659,7 @@ function onNumBuildingsInput(val){
 }
 
 function goPage(n){
-  if(n===3){ renderUpgrades(); syncMarginInput(); }
+  if(n===3){ renderUpgrades(); syncMarginInput(); updateMgmtEstimateDisplay(); }
   if(n===4){
     // sync tax button visual to current state
     const btn = document.getElementById('btnTax');
@@ -645,6 +697,19 @@ function getAggTotalSq(){
   return total;
 }
 
+// Flat roof squares summed across ALL buildings (only buildings with the
+// Flat Roof/EPDM section enabled) — added to getAggTotalSq() for GC sizing
+// (dumpster/management) so flat-roof tear-off debris/area is accounted for.
+function getAggFlatSq(){
+  let total = 0;
+  for(let b=0; b<numBuildings; b++){
+    if(BS[b] && BS[b].hasFlat){
+      total += parseFloat(document.getElementById('mFlatArea_b'+b)?.value||0);
+    }
+  }
+  return total;
+}
+
 function onMeasureChange(){
   // update warranty qty if active (warranty is priced off ALL buildings' squares)
   const wqty = document.getElementById('uqty_warranty');
@@ -652,6 +717,8 @@ function onMeasureChange(){
     wqty.value = getAggTotalSq().toFixed(1);
     refreshUpgrades();
   }
+  updateMgmtEstimateDisplay();
+  if(S.page===4) renderSummary();
 }
 
 // Per-building base cost (labor + materials + flat roof + PVC trim + skylights)
@@ -691,7 +758,7 @@ function getUpgradeCost(){
     const qty = parseFloat(document.getElementById('uqty_'+u.id)?.value||0);
     if(!qty) return;
     const uqty = u.id==='warranty' ? getAggTotalSq() : qty;
-    total += u.unitCost * uqty;
+    total += getUpgradeUnitCost(u) * uqty;
   });
   return total;
 }
@@ -717,23 +784,30 @@ function calcFlatRoof(b){
   const sealerPockets  = parseFloat(document.getElementById('mFlatSealerPockets_b'+b)?.value||0);
   const perim = wallTerm + openEdge;
   const p = FLAT_PRICES;
-  const wasteArea = area * (1 + p.waste);
+  // 10% waste factor applied across every area/perimeter-based flat roof
+  // material quantity (not to fixed-count items like pipe boots/sealer
+  // pockets, or the flat $/job supplies kit).
+  const wasteArea     = area * (1 + p.waste);
+  const wastePerim    = perim * (1 + p.waste);
+  const wasteWallTerm = wallTerm * (1 + p.waste);
+  const wasteOpenEdge = openEdge * (1 + p.waste);
   // Seam tape / caulk basis: source sheet uses (area/10 estimated seam length + perimeter)
   const seamBasis = area / 10 + perim;
+  const wasteSeamBasis = seamBasis * (1 + p.waste);
 
   const items = [
     { name:'EPDM Membrane, 60-mil Fully Adhered', uom:'roll',   qty: roundUp(wasteArea / p.membraneCov),      price: p.membrane },
     BS[b].flatCoverBoard ? { name:'Cover Board', uom:'sheet', qty: roundUp(wasteArea / p.coverBoardCov), price: p.coverBoard } : null,
-    { name:'Primer',                        uom:'gal',    qty: roundUp(area / p.primerCov),             price: p.primer },
-    { name:'Bonding Adhesive',              uom:'pail',   qty: roundUp(area / p.bondingAdhCov),         price: p.bondingAdh },
-    { name:'Spray / Splice Adhesive',       uom:'gal',    qty: roundUp(area / p.sprayAdhCov),           price: p.sprayAdh },
-    { name:'Membrane Cleaner',              uom:'jug',    qty: roundUp(area / p.cleanerCov),            price: p.cleaner },
-    { name:'Seam Tape',                     uom:'roll',   qty: roundUp(seamBasis / p.seamTapeCov),      price: p.seamTape },
-    { name:'In-seam Caulk / Lap Sealant',   uom:'tube',   qty: roundUp(seamBasis / p.caulkCov),         price: p.caulk },
-    { name:'Mechanical Fasteners & Plates', uom:'bucket', qty: roundUp(area / p.fastenersCov),          price: p.fasteners },
-    wallTerm>0 ? { name:'Termination Bar', uom:'ea',    qty: roundUp(wallTerm / p.termBarCov),    price: p.termBar } : null,
-    openEdge>0 ? { name:'Metal Edge / Coping', uom:'ea', qty: roundUp(openEdge / p.metalEdgeCov), price: p.metalEdge } : null,
-    perim>0    ? { name:'Water Block Sealant', uom:'tube', qty: roundUp(perim / p.waterBlockCov), price: p.waterBlock } : null,
+    { name:'Primer',                        uom:'gal',    qty: roundUp(wasteArea / p.primerCov),        price: p.primer },
+    { name:'Bonding Adhesive',              uom:'pail',   qty: roundUp(wasteArea / p.bondingAdhCov),    price: p.bondingAdh },
+    { name:'Spray / Splice Adhesive',       uom:'gal',    qty: roundUp(wasteArea / p.sprayAdhCov),      price: p.sprayAdh },
+    { name:'Membrane Cleaner',              uom:'jug',    qty: roundUp(wasteArea / p.cleanerCov),       price: p.cleaner },
+    { name:'Seam Tape',                     uom:'roll',   qty: roundUp(wasteSeamBasis / p.seamTapeCov), price: p.seamTape },
+    { name:'In-seam Caulk / Lap Sealant',   uom:'tube',   qty: roundUp(wasteSeamBasis / p.caulkCov),    price: p.caulk },
+    { name:'Mechanical Fasteners & Plates', uom:'bucket', qty: roundUp(wasteArea / p.fastenersCov),     price: p.fasteners },
+    wallTerm>0 ? { name:'Termination Bar', uom:'ea',    qty: roundUp(wasteWallTerm / p.termBarCov),    price: p.termBar } : null,
+    openEdge>0 ? { name:'Metal Edge / Coping', uom:'ea', qty: roundUp(wasteOpenEdge / p.metalEdgeCov), price: p.metalEdge } : null,
+    perim>0    ? { name:'Water Block Sealant', uom:'tube', qty: roundUp(wastePerim / p.waterBlockCov), price: p.waterBlock } : null,
     { name:'Application Tools & Consumables', uom:'job', qty: 1,              price: p.suppliesKit },
     pipeBoots>0     ? { name:'Pipe Boots',              uom:'ea', qty: pipeBoots,     price: p.pipeBoot } : null,
     sealerPockets>0 ? { name:'Pourable Sealer Pockets', uom:'ea', qty: sealerPockets, price: p.sealerPocket } : null,
@@ -760,8 +834,9 @@ function calcPvcTrim(b){
   const rakeSize1 = document.getElementById('mPvcRakeSize1_b'+b)?.value || '1x6';
   const rakeSize2 = document.getElementById('mPvcRakeSize2_b'+b)?.value || '1x6';
   const rake2pc = BS[b].pvcRake2pc;
-  const eaveBoards = roundUp(eaves / p.boardLength);
-  const rakeBoards = roundUp(rakes / p.boardLength);
+  // 10% waste factor for board cut waste along eaves/rakes.
+  const eaveBoards = roundUp(eaves * (1 + p.waste) / p.boardLength);
+  const rakeBoards = roundUp(rakes * (1 + p.waste) / p.boardLength);
 
   const items = [
     eaves>0 ? { name:`Eave PVC Trim (${eaveSize}, 18' bd)`, uom:'pc', qty: eaveBoards, price: p.sizes[eaveSize]||0 } : null,
@@ -899,7 +974,7 @@ const DEFAULT_FLAT_PRICES = {
   suppliesKit:    45.16, // $/job — application tools & consumables (rollers, handle, brushes)
 
   // WASTE & LABOR
-  waste:           0.05, // 5% waste factor (applied to membrane & cover board coverage)
+  waste:           0.10, // 10% waste factor (applied to all flat roof / EPDM material takeoff quantities)
   labor:           4.00, // $/sf — flat roof labor rate
 };
 let FLAT_PRICES = DEFAULT_FLAT_PRICES;
@@ -912,6 +987,7 @@ let FLAT_PRICES = DEFAULT_FLAT_PRICES;
 const DEFAULT_PVC_PRICES = {
   boardLength: 18,   // LF per board
   labor:        7.00,// $/LF — eaves + rakes combined
+  waste:        0.10,// 10% waste factor (cut waste on eave/rake board takeoff)
   sizes: {
     '1x3':  26.41, // $/18' board · confirmed 2026-09-01
     '1x4':  32.40, // $/18' board · confirmed 2026-09-01
@@ -1143,9 +1219,11 @@ function calcMaterials(b) {
 
 // GC costs (dumpster, management, skylight management) are computed off the
 // SUM of squares and skylight-replace-qty across ALL buildings on the property.
+// Flat roof area counts toward this total too (tear-off debris/area applies
+// regardless of roof type), so it's added in alongside the shingle squares.
 function calcGC(){
-  const sq = getAggTotalSq();
-  if(!sq) return { dumpster:0, management:0, skylightMgmt:0, permit:0, total:0 };
+  const sq = getAggTotalSq() + getAggFlatSq();
+  if(!sq) return { dumpster:0, management:0, skylightMgmt:0, permit:0, total:0, mgmtDays:0, mgmtAutoDays:0 };
 
   // Skylight replacements add 0.5 sq each to dumpster waste calc
   const skylReplace = getAggSklReplaceTotalQty();
@@ -1155,14 +1233,18 @@ function calcGC(){
   const dumpsterUnits = Math.max(1, Math.ceil(effectiveSq / 50));
   const dumpster      = dumpsterUnits * LABOR_RATES.dumpster;
 
-  // Management — $300 per 50 sq (or fraction), min $300
-  const mgmtUnits  = Math.max(1, Math.ceil(sq / 50));
-  const management = mgmtUnits * LABOR_RATES.management;
+  // Management — $300/day. Auto-estimated at 1 day per 50 sq (or fraction),
+  // min 1 day, unless overridden with an exact day count entered on Page 3.
+  const autoDays = mgmtAutoDays();
+  const mgmtDays = S.mgmtOverride
+    ? Math.max(0, parseFloat(document.getElementById('mgmtDaysInput')?.value || 0))
+    : autoDays;
+  const management = mgmtDays * LABOR_RATES.management;
 
   // Skylight management — $300 per 5 skylights replaced (rounded up)
   const skylightMgmt = skylReplace > 0 ? Math.ceil(skylReplace / 5) * 300 : 0;
 
-  return { dumpster, management, skylightMgmt, permit:0, total: dumpster + management + skylightMgmt };
+  return { dumpster, management, skylightMgmt, permit:0, total: dumpster + management + skylightMgmt, mgmtDays, mgmtAutoDays: autoDays };
 }
 
 function calcPermit(sellPrice){
@@ -1256,15 +1338,66 @@ function refreshUpgrades(){
     const qtyEl  = document.getElementById('uqty_'+u.id);
     if(!sellEl) return;
     const qty = u.id==='warranty' ? getAggTotalSq() : parseFloat(qtyEl?.value||0);
-    const unitSell = sellPrice(u.unitCost, m);
+    const unitCost = getUpgradeUnitCost(u);
+    const unitSell = sellPrice(unitCost, m);
     if(qty>0){
-      const totalSell = sellPrice(u.unitCost * (u.id==='warranty'?qty:qty), m);
+      const totalSell = sellPrice(unitCost * qty, m);
       sellEl.textContent = `${fmtDec(unitSell,2)}/` + u.uom + (qty>0 ? ` · Total: ${fmt(totalSell)}` : '');
     } else {
       sellEl.textContent = `Sell price: ${fmtDec(unitSell,2)}/${u.uom}`;
     }
   });
   calcAll();
+}
+
+// Commercial/Residential gutter upgrades take extra per-foot add-on options
+// (color, wedges, custom metal hangers) — matched by id, not a flag, since
+// UPGRADES can be replaced wholesale by the SharePoint-synced pricing list.
+function isGutterUpgrade(id){ return id==='gutter_c' || id==='gutter_r'; }
+
+const GUTTER_COLORS = ['White','Black','Bronze','Musket Brown','Clay','Almond','Royal Brown','Custom / Other'];
+
+function gutterAddOnHTML(id){
+  return `<label class="upg-addon-label">Gutter Color</label>
+    <select id="ugutterColor_${id}" onchange="refreshUpgrades()">
+      ${GUTTER_COLORS.map(c=>`<option value="${c}">${c}${c==='White'?' (standard)':' (+$2/ft)'}</option>`).join('')}
+    </select>
+    <div class="tog-group" style="margin-top:10px">
+      <div class="tog accent" id="ugutterWedges_${id}" onclick="toggleGutterAddOn(this)">+ Wedges (+$2/ft)</div>
+      <div class="tog accent" id="ugutterHangers_${id}" onclick="toggleGutterAddOn(this)">+ Custom Metal Hangers (+$4/ft)</div>
+    </div>`;
+}
+
+function toggleGutterAddOn(el){
+  el.classList.toggle('on');
+  refreshUpgrades();
+}
+
+// Extra per-foot cost from the gutter add-on selections (color/wedges/hangers).
+function getGutterAddOnCost(id){
+  if(!isGutterUpgrade(id)) return 0;
+  let add = 0;
+  const color = document.getElementById('ugutterColor_'+id)?.value;
+  if(color && color !== 'White') add += 2;
+  if(document.getElementById('ugutterWedges_'+id)?.classList.contains('on')) add += 2;
+  if(document.getElementById('ugutterHangers_'+id)?.classList.contains('on')) add += 4;
+  return add;
+}
+
+// Human-readable note of which gutter add-ons are active, for the quote detail.
+function getGutterAddOnNote(id){
+  if(!isGutterUpgrade(id)) return '';
+  const parts = [];
+  const color = document.getElementById('ugutterColor_'+id)?.value;
+  if(color && color !== 'White') parts.push(color+' color');
+  if(document.getElementById('ugutterWedges_'+id)?.classList.contains('on')) parts.push('wedges');
+  if(document.getElementById('ugutterHangers_'+id)?.classList.contains('on')) parts.push('custom metal hangers');
+  return parts.join(', ');
+}
+
+// Total per-unit cost for an upgrade, including gutter add-ons when applicable.
+function getUpgradeUnitCost(u){
+  return u.unitCost + getGutterAddOnCost(u.id);
 }
 
 function renderUpgrades(){
@@ -1285,6 +1418,7 @@ function renderUpgrades(){
           ? `<input id="uqty_${u.id}" type="number" value="${autoQty}" readonly style="background:#f0ede8;color:#aaa;" oninput="refreshUpgrades()"/>`
           : `<input id="uqty_${u.id}" type="number" min="0" placeholder="Enter quantity" oninput="refreshUpgrades()"/>`
         }
+        ${isGutterUpgrade(u.id) ? gutterAddOnHTML(u.id) : ''}
         <div class="upg-sell" id="usell_${u.id}">Sell price: ${fmtDec(unitSell,2)}/${u.uom}</div>
       </div>
     </div>`;
@@ -1346,7 +1480,7 @@ function renderSummary(){
     upgCost>0 ? ['Upgrades', fmt(upgCost)] : null,
     taxCost>0 ? ['Material sales tax (6.25%)', fmt(taxCost)] : null,
     gc.dumpster>0 ? ['Dumpster', fmt(gc.dumpster)] : null,
-    gc.management>0 ? ['Project management', fmt(gc.management)] : null,
+    gc.management>0 ? ['Project management ('+fmtDays(gc.mgmtDays)+(S.mgmtOverride?' · manual':'')+')', fmt(gc.management)] : null,
     gc.skylightMgmt>0 ? ['Skylight management', fmt(gc.skylightMgmt)] : null,
     gc.permit>0 ? ['Permit (1.5%)', fmt(gc.permit)] : null,
     ['Total cost', fmt(totalCost)],
@@ -1444,12 +1578,14 @@ function renderSummary(){
   }).map(u=>{
     const qty = u.id==='warranty' ? getAggTotalSq() : parseFloat(document.getElementById('uqty_'+u.id)?.value||0);
     if(!qty) return '';
-    const unitSell = sellPrice(u.unitCost, m);
+    const unitCost = getUpgradeUnitCost(u);
+    const unitSell = sellPrice(unitCost, m);
     const totalSell = unitSell * qty;
+    const addOnNote = getGutterAddOnNote(u.id);
     return `<div class="detail-row">
       <div>
         <div class="detail-name">${u.name}</div>
-        <div class="detail-sub">${qty} ${u.uom} · $${u.unitCost} cost/${u.uom}</div>
+        <div class="detail-sub">${qty} ${u.uom} · $${unitCost.toFixed(2)} cost/${u.uom}${addOnNote ? ' ('+addOnNote+')' : ''}</div>
       </div>
       <div class="detail-prices">
         <div class="detail-sell">${fmt(totalSell)}</div>
@@ -1838,6 +1974,7 @@ async function syncPricingFromGraph() {
     const pvcSynced = extractPvcPrices(built.MAT_PRICES, built.LABOR_RATES);
     PVC_PRICES = {
       boardLength: DEFAULT_PVC_PRICES.boardLength,
+      waste: DEFAULT_PVC_PRICES.waste,
       labor: pvcSynced.labor !== undefined ? pvcSynced.labor : DEFAULT_PVC_PRICES.labor,
       sizes: Object.assign({}, DEFAULT_PVC_PRICES.sizes, pvcSynced.sizes),
     };
@@ -2262,7 +2399,7 @@ function generateCostSheet(d){
 
   const gcRows = `
     ${d.gc.dumpster>0?`<tr><td>Dumpster</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.dumpster)}</b></td></tr>`:''}
-    ${d.gc.management>0?`<tr><td>Project Management</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.management)}</b></td></tr>`:''}
+    ${d.gc.management>0?`<tr><td>Project Management (${fmtDays(d.gc.mgmtDays)}${S.mgmtOverride?' · manual':''})</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.management)}</b></td></tr>`:''}
     ${d.gc.skylightMgmt>0?`<tr><td>Skylight Management</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.skylightMgmt)}</b></td></tr>`:''}
     ${d.gc.permit>0?`<tr><td>Permit (1.5%)</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.permit)}</b></td></tr>`:''}
   `;
