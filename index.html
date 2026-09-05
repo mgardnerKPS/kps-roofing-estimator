@@ -157,6 +157,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- Used to render the Cost Sheet to a real PDF file for saving to SharePoint (Save PO Summary) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Used to read text out of an uploaded EagleView roof report PDF client-side (Roof Measurements auto-fill) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -372,7 +374,7 @@ function suggestProjectId(){
 }
 
 const DEFAULT_UPGRADES = [
-  {id:'iw',       name:'Additional I&W along eaves',               unitCost:6,   uom:'LF',      label:'Linear feet of eaves'},
+  {id:'iw',       name:'3rd Row of Ice & Water Shield (Eaves)',     unitCost:6,   uom:'LF',      label:'Linear feet of eaves'},
   {id:'gutter_c', name:'Commercial gutters & downspouts',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet'},
   {id:'gutter_r', name:'Residential gutters & downspouts',  unitCost:19,  uom:'LF',      label:'Total gutter linear feet'},
   {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls'},
@@ -383,6 +385,32 @@ const DEFAULT_UPGRADES = [
   {id:'siding',   name:'New vinyl siding replacement',               unitCost:15,  uom:'SF',      label:'Square feet of siding'},
 ];
 let UPGRADES = DEFAULT_UPGRADES;
+
+// Standard "what's included" line items shown on the client-facing Draft
+// Proposal. Edit this list to change what shows up there for every job.
+const DEFAULT_INCLUDES = [
+  'Permit costs',
+  'Disposal of roofing debris',
+  'Daily cleanup',
+];
+let INCLUDES = DEFAULT_INCLUDES;
+
+// Standard exclusions shown on the client-facing Draft Proposal, adapted
+// from KPS's usual estimate boilerplate. Edit this list to change what shows
+// up there for every job.
+const DEFAULT_EXCLUSIONS = [
+  'Any items not specifically mentioned above, or unforeseen conditions',
+  'Asbestos testing or abatement',
+  'Lead testing or abatement',
+  'Mold testing or abatement',
+  'Any repair of interior damage that may occur due to normal roofing work',
+  'Fascia repairs behind existing gutters, if found to be required',
+  'Any utility work, including but not limited to electrical, plumbing, HVAC, security cameras/alarms, or satellite dishes',
+  'Any architectural, engineering, or construction control affidavits',
+  'Any painting or staining',
+  'KPS is not responsible for damage to gutters from normal ladder use during the project',
+];
+let EXCLUSIONS = DEFAULT_EXCLUSIONS;
 
 
 const S = {
@@ -499,6 +527,236 @@ function toggleFlatRoof(b, el){
   onMeasureChange();
 }
 
+function enableFlatRoofIfNeeded(b){
+  if(BS[b] && BS[b].hasFlat) return;
+  const el = document.getElementById('togFlatRoof_b'+b);
+  if(el) toggleFlatRoof(b, el);
+}
+
+// ── ROOF REPORT PDF AUTO-FILL ────────────────────────────────────────────────
+// Reads an uploaded EagleView roof report PDF entirely client-side (pdf.js),
+// pulls out whatever measurements the report tier actually contains, and
+// pre-fills the matching Roof Measurements / Flat Roof fields. Every filled
+// field stays a normal editable input — nothing here is a black box, and the
+// on-screen status banner always says exactly what was found vs. what still
+// needs to be entered by hand.
+//
+// Two EagleView report tiers are handled:
+//  - "Premium" style reports carry clean "Label = value ft" lines (Length
+//    Diagram / All Structures Totals pages) for ridges, hips, valleys, rakes,
+//    eaves, flashing, step flashing, and (when present) parapet walls, plus a
+//    Waste Calculation table whose "Area (Sq ft)" row's first number is the
+//    un-wasted asphalt-shingle-only (>=3/12 pitch) area.
+//  - "Bid Perfect" style reports are much thinner — just a total-squares
+//    figure and a per-pitch area breakdown (in "SQ" units) — so squares are
+//    derived by summing that per-pitch table's buckets (>=3/12 pitch = steep/
+//    shingle squares, everything below that = flat/low-slope squares).
+// Hover reports are NOT supported: Hover renders its measurement tables as
+// images rather than real text, so there's nothing for a text-based parser
+// to read (confirmed against a real sample — every row is a raster image
+// with no embedded font/text at all).
+
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+async function extractPdfText(file){
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+  let fullText = '';
+  for(let i=1; i<=doc.numPages; i++){
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    let line = '';
+    for(const item of content.items){
+      line += item.str;
+      if(item.hasEOL){ fullText += line + '\n'; line=''; }
+      else line += ' ';
+    }
+    if(line) fullText += line + '\n';
+    fullText += '\n';
+  }
+  return fullText;
+}
+
+function isEagleViewReport(text){
+  return /eagleview|eagle\s*view\s*technologies/i.test(text);
+}
+
+function rrNum(str){
+  if(str===undefined || str===null) return null;
+  const n = parseFloat(String(str).replace(/,/g,''));
+  return isNaN(n) ? null : n;
+}
+
+function rrRound2(n){ return Math.round(n*100)/100; }
+
+// "<Label> = <number> ft" — anchored to the START of a line so it never
+// matches inside a combined line like "Total Ridges/Hips =26 ft" (that
+// line's first word is "Total", not "Ridges" or "Hips"), which would
+// otherwise silently misattribute a combined ridge+hip total to one field.
+function grabFtLabel(text, label){
+  const re = new RegExp('(?:^|\\n)\\s*' + label + '\\s*[†‡]?\\s*=\\s*([\\d,]+(?:\\.\\d+)?)\\s*ft', 'i');
+  const m = text.match(re);
+  return m ? rrNum(m[1]) : null;
+}
+
+function applyPitchZip(pitchTokens, values, result){
+  let steep=0, flat=0, any=false;
+  pitchTokens.forEach((p,idx)=>{
+    const n = parseInt(p.split('/')[0],10);
+    const v = values[idx];
+    if(v===null || v===undefined || isNaN(v)) return;
+    any = true;
+    if(n>=3) steep += v; else flat += v;
+  });
+  if(any){
+    result.steepSquares = rrRound2(steep);
+    result.flatSquares = rrRound2(flat);
+  }
+}
+
+function parseEagleViewReport(text){
+  const lines = text.split('\n').map(l=>l.trim());
+  const result = {
+    reportTier: null, reportNumber: null, predominantPitch: null,
+    steepSquares: null, flatSquares: null,
+    ridgesLF: null, hipsLF: null, valleysLF: null, rakesLF: null, eavesLF: null,
+    flashingLF: null, stepFlashingLF: null, parapetWallsLF: null,
+  };
+
+  const repMatch = text.match(/Report:\s*(\d+)/i);
+  if(repMatch) result.reportNumber = repMatch[1];
+
+  const pitchMatch = text.match(/Predominant\s*Pitch\s*=?\s*(\d{1,2}\/12)/i);
+  if(pitchMatch) result.predominantPitch = pitchMatch[1];
+
+  result.ridgesLF        = grabFtLabel(text, 'Ridges');
+  result.hipsLF          = grabFtLabel(text, 'Hips');
+  result.valleysLF       = grabFtLabel(text, 'Valleys');
+  result.rakesLF         = grabFtLabel(text, 'Rakes');
+  result.eavesLF         = grabFtLabel(text, 'Eaves(?:/Starter)?');
+  result.flashingLF      = grabFtLabel(text, 'Flashing');
+  result.stepFlashingLF  = grabFtLabel(text, 'Step\\s*[Ff]lashing');
+  {
+    const m = text.match(/(?:^|\n)\s*Parapet(?:s|\s*Walls)?\s*=\s*([\d,]+(?:\.\d+)?)/i);
+    if(m) result.parapetWallsLF = rrNum(m[1]);
+  }
+  if(result.ridgesLF!==null || result.eavesLF!==null) result.reportTier = 'premium';
+
+  const totalAllPitchesM = text.match(/Total\s*Area\s*\(All Pitches\)\s*=\s*([\d,]+(?:\.\d+)?)\s*sq\s*ft/i)
+                          || text.match(/Total\s*Roof\s*Area\s*=\s*([\d,]+(?:\.\d+)?)\s*sq\s*ft/i);
+  const totalAllPitchesSqFt = totalAllPitchesM ? rrNum(totalAllPitchesM[1]) : null;
+
+  let steepSqFt = null;
+  for(const line of lines){
+    const m = line.match(/^Area\s*\(sq\s*ft\)\s+([\d,]+(?:\.\d+)?)/i);
+    if(m){ steepSqFt = rrNum(m[1]); break; }
+  }
+
+  if(steepSqFt!==null){
+    result.steepSquares = rrRound2(steepSqFt/100);
+    if(totalAllPitchesSqFt!==null) result.flatSquares = rrRound2(Math.max(0, totalAllPitchesSqFt - steepSqFt)/100);
+  } else {
+    for(let i=0;i<lines.length && result.steepSquares===null;i++){
+      const pitchTokens = lines[i].match(/\d{1,2}\/12/g);
+      if(!pitchTokens || pitchTokens.length<1) continue;
+      for(let j=i+1;j<Math.min(i+4, lines.length);j++){
+        const sqMatches = lines[j].match(/[\d.]+\s*SQ\b/gi);
+        if(sqMatches && sqMatches.length===pitchTokens.length){
+          applyPitchZip(pitchTokens, sqMatches.map(rrNum), result);
+          break;
+        }
+        const isPlainRow = /^[\d.,]+(?:\s+[\d.,]+)*$/.test(lines[j]);
+        const plain = isPlainRow ? lines[j].split(/\s+/).map(rrNum) : null;
+        if(plain && plain.length===pitchTokens.length && plain.every(v=>v!==null)){
+          applyPitchZip(pitchTokens, plain.map(v=>v/100), result);
+          break;
+        }
+      }
+    }
+  }
+
+  if(!result.reportTier) result.reportTier = (result.steepSquares!==null || result.flatSquares!==null) ? 'bidperfect' : 'unknown';
+  return result;
+}
+
+function rrEsc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+async function handleReportUpload(b, inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  const statusEl = document.getElementById('reportStatus_b'+b);
+  if(!file || !statusEl) return;
+  statusEl.style.color = '#888';
+  statusEl.innerHTML = 'Reading ' + rrEsc(file.name) + '…';
+
+  let text;
+  try{
+    text = await extractPdfText(file);
+  }catch(err){
+    statusEl.style.color = '#b3261e';
+    statusEl.innerHTML = "⚠ Couldn't read that PDF — it may be corrupted or password-protected. Enter measurements manually.";
+    return;
+  }
+
+  if(!isEagleViewReport(text)){
+    const looksLikeHover = /hover/i.test(text) || text.trim().length < 200;
+    statusEl.style.color = '#b3701e';
+    statusEl.innerHTML = looksLikeHover
+      ? "This doesn't look like an EagleView report (possibly Hover or another provider). Auto-fill only supports EagleView right now — enter these measurements by hand."
+      : "Couldn't recognize this report format. Auto-fill only supports EagleView right now — enter these measurements by hand.";
+    return;
+  }
+
+  const r = parseEagleViewReport(text);
+  const filled = [];
+  const missing = [];
+
+  function setIfFound(id, val, label, unit){
+    if(val!==null && val!==undefined){ sv(id, val); filled.push(label+': '+val+(unit||'')); }
+    else missing.push(label);
+  }
+
+  setIfFound('mSq_b'+b, r.steepSquares, 'Squares', ' sq');
+  setIfFound('mRidges_b'+b, r.ridgesLF, 'Ridges', ' LF');
+  setIfFound('mHips_b'+b, r.hipsLF, 'Hips', ' LF');
+  setIfFound('mValleys_b'+b, r.valleysLF, 'Valleys', ' LF');
+  setIfFound('mRakes_b'+b, r.rakesLF, 'Rakes', ' LF');
+  setIfFound('mEaves_b'+b, r.eavesLF, 'Eaves', ' LF');
+  setIfFound('mFlashing_b'+b, r.flashingLF, 'Flashing', ' LF');
+  setIfFound('mStepFlashing_b'+b, r.stepFlashingLF, 'Step Flashing', ' LF');
+
+  const wallHint = document.getElementById('wallTermHint_b'+b);
+  let wallTermNote = null;
+  if(r.flatSquares!==null && r.flatSquares > 0.05){
+    enableFlatRoofIfNeeded(b);
+    sv('mFlatArea_b'+b, r.flatSquares);
+    filled.push('Flat Roof Area: '+r.flatSquares+' sq (section enabled)');
+    if(r.parapetWallsLF!==null && r.parapetWallsLF > 0){
+      sv('mFlatWallTerm_b'+b, r.parapetWallsLF);
+      if(wallHint) wallHint.style.display = 'block';
+      wallTermNote = 'Wall-side Termination suggested at '+r.parapetWallsLF+' LF from the report\'s Parapet Walls — please confirm.';
+    } else {
+      if(wallHint) wallHint.style.display = 'none';
+      wallTermNote = 'Wall-side Termination & Open Edge aren\'t broken out by this report — enter both by hand.';
+    }
+  } else if(wallHint){
+    wallHint.style.display = 'none';
+  }
+
+  onMeasureChange();
+
+  const tierLabel = r.reportTier==='premium' ? 'EagleView Premium Report' : (r.reportTier==='bidperfect' ? 'EagleView Bid Perfect Report' : 'EagleView Report');
+  let html = '<div style="color:#2e7d32;font-weight:600">✓ Detected: '+tierLabel+(r.reportNumber?(' (#'+rrEsc(r.reportNumber)+')'):'')+'</div>';
+  if(r.predominantPitch) html += '<div style="margin-top:4px">Predominant pitch: '+rrEsc(r.predominantPitch)+'</div>';
+  if(filled.length) html += '<div style="margin-top:4px">Filled: '+rrEsc(filled.join(' · '))+'</div>';
+  if(wallTermNote) html += '<div style="margin-top:4px;color:#b3701e">'+rrEsc(wallTermNote)+'</div>';
+  if(missing.length) html += '<div style="margin-top:4px;color:#888">Not in this report: '+rrEsc(missing.join(', '))+' — left as-is, enter manually if needed.</div>';
+  html += '<div style="margin-top:4px;color:#888">Every field above stays editable — please review before quoting.</div>';
+  statusEl.style.color = '';
+  statusEl.innerHTML = html;
+}
+
 function togglePvcTrim(b, el){
   BS[b].hasPvcTrim = !BS[b].hasPvcTrim;
   el.classList.toggle('on', BS[b].hasPvcTrim);
@@ -535,6 +793,15 @@ function buildingCardHTML(b){
 
     <div class="card">
       <div class="card-title">Roof Measurements — ${name.replace(/</g,'&lt;')}</div>
+      <div class="field" style="margin-bottom:14px;padding:10px;border:1px dashed #e0ddd8;border-radius:10px;background:#faf9f7">
+        <label style="margin-bottom:6px">Auto-fill from Roof Report</label>
+        <input type="file" accept="application/pdf" id="reportFile_b${b}" style="display:none" onchange="handleReportUpload(${b}, this)"/>
+        <div class="tog-group">
+          <div class="tog accent" onclick="document.getElementById('reportFile_b${b}').click()">Upload Roof Report (PDF)…</div>
+        </div>
+        <div id="reportStatus_b${b}" style="font-size:12px;line-height:1.5;margin-top:8px"></div>
+        <p style="font-size:11px;color:#aaa;margin-top:6px;margin-bottom:0">Currently reads EagleView reports (Bid Perfect &amp; Premium tiers). Hover and other formats aren't supported yet — enter those measurements by hand.</p>
+      </div>
       <div class="row2">
         <div class="field"><label>Squares (sq)</label><input id="mSq_b${b}" type="number" min="0" step="0.1" placeholder="0.0" oninput="onMeasureChange()"/></div>
         <div class="field"><label>Valleys (LF)</label><input id="mValleys_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
@@ -594,7 +861,9 @@ function buildingCardHTML(b){
       <div id="flatRoofFields_b${b}" style="display:none">
         <div class="row2">
           <div class="field"><label>Flat Roof Area (Squares)</label><input id="mFlatArea_b${b}" type="number" min="0" step="0.1" placeholder="0" oninput="onMeasureChange()"/></div>
-          <div class="field"><label>Wall-side Termination (LF)</label><input id="mFlatWallTerm_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
+          <div class="field"><label>Wall-side Termination (LF)</label><input id="mFlatWallTerm_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/>
+            <p id="wallTermHint_b${b}" style="display:none;font-size:11px;color:#b3701e;margin-top:4px;">↑ suggested from the report's Parapet Walls length — the report doesn't tie this to a specific facet, so confirm it matches the flat section before quoting.</p>
+          </div>
         </div>
         <div class="row2">
           <div class="field"><label>Open Edge / Drip Metal (LF)</label><input id="mFlatOpenEdge_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
@@ -2594,10 +2863,81 @@ function generateCostSheet(d){
 }
 
 // ── PDF 2: DRAFT PROPOSAL ──────────────────────────────────────────────────
+// Upsell suggestions for the Draft Proposal — one entry per upgrade that
+// ISN'T currently selected on the Upgrades page, plus a "next tier up"
+// shingle suggestion when the current shingle isn't already the top of its
+// manufacturer line. Prices are estimated at the project's current margin
+// using measurements already on file (eaves LF, total squares, hips+ridges)
+// so they're a real dollar figure, not just a per-unit rate — but they're
+// still estimates Mike should sanity-check before quoting, same as
+// everything else in the estimator.
+function getProposalUpsells(d){
+  const m = S.margin;
+  const upsells = [];
+
+  function isSelected(id){
+    const chk = document.getElementById('uchk_'+id);
+    return !!(chk && chk.classList.contains('on'));
+  }
+  function upgradeById(id){ return UPGRADES.find(u=>u.id===id); }
+
+  const totalEaves = d.buildings.reduce((s,bd)=> s + parseFloat(document.getElementById('mEaves_b'+bd.idx)?.value||0), 0);
+  const totalSq = getAggTotalSq();
+
+  // 3rd row of Ice & Water Shield along the eaves.
+  const iwU = upgradeById('iw');
+  if(iwU && !isSelected('iw')){
+    upsells.push(totalEaves>0
+      ? { name: iwU.name, priceText: fmt(sellPrice(iwU.unitCost,m)*totalEaves) }
+      : { name: iwU.name, priceText: fmtDec(sellPrice(iwU.unitCost,m),2)+'/LF' });
+  }
+
+  // Gutters — residential and commercial are mutually-relevant upsells;
+  // gutter length isn't a field of its own, so eaves LF (where gutters
+  // actually hang) is used as the estimated footage.
+  ['gutter_r','gutter_c'].forEach(id=>{
+    const u = upgradeById(id);
+    if(!u || isSelected(id)) return;
+    upsells.push(totalEaves>0
+      ? { name: u.name, priceText: fmt(sellPrice(u.unitCost,m)*totalEaves) + ' (est. '+totalEaves.toFixed(0)+' LF)' }
+      : { name: u.name, priceText: fmtDec(sellPrice(u.unitCost,m),2)+'/LF' });
+  });
+
+  // Warranty upgrade.
+  const warrU = upgradeById('warranty');
+  if(warrU && !isSelected('warranty') && totalSq>0){
+    upsells.push({ name: warrU.name, priceText: fmt(sellPrice(warrU.unitCost,m)*totalSq) });
+  }
+
+  // Next shingle tier up, if the current selection isn't already the top of
+  // its manufacturer's line (the "Other — specify in notes" catch-all entry
+  // is never treated as a real tier to upgrade into).
+  const tierList = (MFG_PRODUCTS[S_mfg]||[]).filter(p=>!/^Other/i.test(p[0]));
+  const curIdx = tierList.findIndex(p=>p[0]===d.prod);
+  if(curIdx>=0 && curIdx < tierList.length-1){
+    const cur = tierList[curIdx], next = tierList[curIdx+1];
+    let extraCost = 0;
+    d.buildings.forEach(bd=>{
+      const sq = bd.sq||0;
+      const hips = parseFloat(document.getElementById('mHips_b'+bd.idx)?.value||0);
+      const ridges = parseFloat(document.getElementById('mRidges_b'+bd.idx)?.value||0);
+      const bundles = roundUp(sq*3*1.05);
+      const hrBundles = roundUp((hips+ridges)*1.1/20);
+      extraCost += (next[1]-cur[1])*bundles + (next[2]-cur[2])*hrBundles;
+    });
+    if(extraCost>0){
+      upsells.push({ name: 'Upgrade shingle to '+next[0], priceText: fmt(sellPrice(extraCost,m)) });
+    }
+  }
+
+  return upsells;
+}
+
 function generateProposal(d){
   const mfg = S_mfg;
   const col = MFG_COLORS[mfg];
   const mfgName = MFG_LABEL[mfg];
+  const upsells = getProposalUpsells(d);
 
   return `
   <div style="max-width:750px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px">
@@ -2662,6 +3002,32 @@ function generateProposal(d){
       <div style="font-size:42px;font-weight:800;color:#fff;letter-spacing:-2px;margin:4px 0">${fmt(d.final)}</div>
       <div style="font-size:11px;color:rgba(255,255,255,0.6)">${getAggTotalSq().toFixed(1)} squares · ${d.buildings.length} building${d.buildings.length===1?'':'s'} · ${mfgName} ${d.prod}${d.color?' · '+d.color:''}</div>
       ${d.disc>0?`<div style="font-size:11px;color:${col.accent};margin-top:4px">${d.disc}% field discount applied</div>`:''}
+    </div>
+
+    <!-- WHAT'S INCLUDED -->
+    <div style="background:#f8f8f8;border-radius:8px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:${col.primary};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">What's Included</div>
+      <div style="font-size:11px;line-height:1.9;color:#333">
+        ${INCLUDES.map(item=>`<div>✓ ${item} — <b>Included</b></div>`).join('')}
+      </div>
+    </div>
+
+    <!-- OPTIONAL UPGRADES AVAILABLE -->
+    ${upsells.length ? `
+    <div style="border:1.5px solid ${col.accent};border-radius:8px;overflow:hidden;margin-bottom:14px">
+      <div style="background:${col.accent};color:#fff;padding:8px 14px;font-weight:700;font-size:12px">OPTIONAL UPGRADES AVAILABLE</div>
+      <div style="padding:12px 14px;font-size:11px;line-height:1.9;color:#333">
+        ${upsells.map(u=>`<div style="display:flex;justify-content:space-between;gap:12px"><span>+ ${u.name}</span><span style="font-weight:700;white-space:nowrap">${u.priceText}</span></div>`).join('')}
+      </div>
+      <div style="padding:0 14px 12px;font-size:10px;color:#888;font-style:italic">Ask us about adding any of the above to your project.</div>
+    </div>` : ''}
+
+    <!-- EXCLUDES -->
+    <div style="background:#f8f8f8;border-radius:8px;padding:14px 16px;margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Excludes</div>
+      <div style="font-size:10.5px;line-height:1.8;color:#555">
+        ${EXCLUSIONS.map(item=>`<div>• ${item}</div>`).join('')}
+      </div>
     </div>
 
     <!-- TERMS -->
