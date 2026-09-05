@@ -3461,11 +3461,47 @@ function getProposalUpsells(d){
   return upsells;
 }
 
+// Every checked Optional Upgrade (with a quantity) actually included in the
+// Total Project Price — one entry per building — so the Draft Proposal can
+// show the client exactly what's already covered, with its measurement,
+// instead of only the generic "What's Included" bullets. Field-rate items
+// (sheath/framing/siding) are excluded since they're never priced into the
+// total; they get their own "Additional Repairs" section below instead.
+function getSelectedUpgradesForProposal(d){
+  const m = S.margin;
+  const list = [];
+  d.buildings.forEach(bd=>{
+    UPGRADES.filter(u=>!isFieldRateUpgrade(u.id)).forEach(u=>{
+      const chk = document.getElementById('uchk_'+u.id+'_b'+bd.idx);
+      if(!chk || !chk.classList.contains('on')) return;
+      const qty = parseFloat(document.getElementById('uqty_'+u.id+'_b'+bd.idx)?.value||0);
+      if(!qty) return;
+      const unitCost = getUpgradeUnitCost(u, bd.idx);
+      const unitSell = sellPrice(unitCost, m);
+      const totalSell = unitSell * qty;
+      // Commercial gutters checked on top of Residential is priced/labeled
+      // as an upgrade (see isResidentialActiveFor/refreshGutterCRow) — match
+      // that same "Upgrade to ..." framing here.
+      const name = (u.id==='gutter_c' && isResidentialActiveFor(bd.idx)) ? ('Upgrade to '+u.name) : u.name;
+      const addOnNote = getGutterAddOnNote(u.id, bd.idx);
+      list.push({
+        building: bd.name,
+        name,
+        measurement: `${fmtQty(qty)} ${u.uom}`,
+        note: addOnNote,
+        priceText: fmt(totalSell),
+      });
+    });
+  });
+  return list;
+}
+
 function generateProposal(d){
   const mfg = S_mfg;
   const col = MFG_COLORS[mfg];
   const mfgName = MFG_LABEL[mfg];
   const upsells = getProposalUpsells(d);
+  const selectedUpgrades = getSelectedUpgradesForProposal(d);
   // Sheathing/framing/siding — job-wide, checked-only, no quantity, never
   // priced into the total above; see isFieldRateUpgrade().
   const fieldRateRows = buildFieldRateDisplayRows();
@@ -3541,6 +3577,18 @@ function generateProposal(d){
         ${INCLUDES.map(item=>`<div>✓ ${item} — <b>Included</b></div>`).join('')}
       </div>
     </div>
+
+    <!-- UPGRADES INCLUDED IN THIS ESTIMATE -->
+    ${selectedUpgrades.length ? `
+    <div style="background:#f8f8f8;border-radius:8px;padding:14px 16px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:${col.primary};margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Upgrades Included in This Estimate</div>
+      <div style="font-size:11px;line-height:1.9;color:#333">
+        ${selectedUpgrades.map(u=>`<div style="display:flex;justify-content:space-between;gap:12px">
+          <span>✓ ${u.name}${d.buildings.length>1?' — '+u.building:''} (${u.measurement}${u.note?', '+u.note:''})</span>
+          <span style="font-weight:700;white-space:nowrap">${u.priceText}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
 
     <!-- OPTIONAL UPGRADES AVAILABLE -->
     ${upsells.length ? `
