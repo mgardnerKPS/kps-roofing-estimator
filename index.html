@@ -3381,12 +3381,21 @@ function getProposalUpsells(d){
   const upsells = [];
 
   // Upgrades are now selected per-building — treat an upgrade as "already
-  // quoted" (skip the upsell suggestion) if it's selected on ANY building,
-  // so the Draft Proposal doesn't pitch something already in the price.
+  // quoted" (skip the upsell suggestion) if it's checked AND actually priced
+  // (qty>0) on any building, so the Draft Proposal doesn't pitch something
+  // already in the price. Requiring qty>0 (not just the checkbox) matters:
+  // a checked box with no quantity entered yet (e.g. Commercial gutters
+  // checked before the eaves measurement is filled in on Page 2) has
+  // nothing to charge for, so it's correctly left out of "Upgrades Included
+  // in This Estimate" — but without this qty check it would ALSO get
+  // wrongly treated as "already quoted" here and skipped from "Optional
+  // Upgrades Available" too, vanishing from the proposal entirely.
   function isSelected(id){
     for(let b=0; b<numBuildings; b++){
       const chk = document.getElementById('uchk_'+id+'_b'+b);
-      if(chk && chk.classList.contains('on')) return true;
+      if(!chk || !chk.classList.contains('on')) continue;
+      const qty = parseFloat(document.getElementById('uqty_'+id+'_b'+b)?.value||0);
+      if(qty>0) return true;
     }
     return false;
   }
