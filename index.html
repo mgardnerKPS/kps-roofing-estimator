@@ -266,22 +266,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div id="upgradeList"></div>
     </div>
     <div class="card">
-      <div class="card-title">Project Management</div>
-      <p style="font-size:12px;color:#aaa;margin-bottom:12px;">Auto-estimated at 1 day per 50 squares (all buildings + flat roof combined), min 1 day. Override with an exact day count if the schedule is already known.</p>
-      <div class="discount-row" style="padding-top:0;border-top:none;">
-        <label>Auto estimate:</label>
-        <span id="mgmtAutoDisplay" style="font-size:13px;color:#555;">—</span>
-      </div>
-      <div class="tog-group" style="margin:10px 0;">
-        <div class="tog accent" id="togMgmtOverride" onclick="toggleMgmtOverride(this)">Manual override</div>
-      </div>
-      <div class="discount-row" id="mgmtDaysRow" style="display:none;">
-        <label>Management days:</label>
-        <input class="disc-input" id="mgmtDaysInput" type="number" min="0" step="0.5" value="1" oninput="updateMgmtEstimateDisplay(); if(S.page===4) renderSummary();"/>
-        <span style="font-size:13px;color:#555;">days</span>
-      </div>
-    </div>
-    <div class="card">
       <div class="card-title">Gross Profit Margin</div>
       <div class="discount-row" style="padding-top:0;border-top:none;">
         <label>Gross margin:</label>
@@ -416,19 +400,21 @@ let EXCLUSIONS = DEFAULT_EXCLUSIONS;
 const S = {
   page:1, steep:false, high:false,
   margin:30, discount:0, includeTax:true,
-  mgmtOverride:false,
 };
 
 // ── MULTI-BUILDING STATE ────────────────────────────────────────────────────
 // numBuildings + BUILDING_NAMES track how many building cards exist and what
 // each is called. BS[b] holds the per-building toggle state that used to live
 // on the single global S object (extraIW, flat roof, PVC trim, etc.) — one
-// entry per building index (0-based).
+// entry per building index (0-based). mgmtOverride is the per-building
+// General Conditions manual override flag (dumpster/management/skylight
+// management are all now sized off each building's own measurements —
+// see getGC(b) — instead of one property-wide total).
 let numBuildings = 1;
 let BUILDING_NAMES = ['Building 1'];
 
 function newBuildingState(){
-  return { extraIW:false, hasFlat:false, flatCoverBoard:false, hasPvcTrim:false, pvcRake2pc:false };
+  return { extraIW:false, hasFlat:false, flatCoverBoard:false, hasPvcTrim:false, pvcRake2pc:false, mgmtOverride:false };
 }
 let BS = { 0: newBuildingState() };
 
@@ -479,24 +465,35 @@ function toggleBuildingState(b, key, el){
   if(S.page===4) renderSummary();
 }
 
-// Project management day count/override (property-wide) ───────────────────
-function toggleMgmtOverride(el){
-  S.mgmtOverride = !S.mgmtOverride;
-  el.classList.toggle('on', S.mgmtOverride);
-  const row = document.getElementById('mgmtDaysRow');
-  if(row) row.style.display = S.mgmtOverride ? 'flex' : 'none';
-  if(S.mgmtOverride){
+// Project management day count/override — PER BUILDING (b = building index).
+// Dumpster and skylight management have no override (always auto-computed);
+// management days can be manually overridden per building the same way the
+// old single property-wide override worked.
+function toggleMgmtOverride(b, el){
+  BS[b].mgmtOverride = !BS[b].mgmtOverride;
+  el.classList.toggle('on', BS[b].mgmtOverride);
+  const row = document.getElementById('mgmtDaysRow_b'+b);
+  if(row) row.style.display = BS[b].mgmtOverride ? 'flex' : 'none';
+  if(BS[b].mgmtOverride){
     // Seed the override field with the current auto estimate so it's a
     // sensible starting point rather than jumping to 1 day.
-    const input = document.getElementById('mgmtDaysInput');
-    if(input) input.value = mgmtAutoDays();
+    const input = document.getElementById('mgmtDaysInput_b'+b);
+    if(input) input.value = mgmtAutoDaysFor(b);
   }
   updateMgmtEstimateDisplay();
   if(S.page===4) renderSummary();
 }
 
-function mgmtAutoDays(){
-  const sq = getAggTotalSq() + getAggFlatSq();
+// Flat roof squares for ONE building (0 if that building doesn't have the
+// Flat Roof section enabled) — used alongside getTotalSq(b) to size that
+// building's own dumpster/management estimate.
+function getFlatSqFor(b){
+  if(BS[b] && BS[b].hasFlat) return parseFloat(document.getElementById('mFlatArea_b'+b)?.value||0);
+  return 0;
+}
+
+function mgmtAutoDaysFor(b){
+  const sq = getTotalSq(b) + getFlatSqFor(b);
   return sq ? Math.max(1, Math.ceil(sq / 50)) : 0;
 }
 
@@ -508,9 +505,22 @@ function fmtDays(days){
   return dPart + wPart;
 }
 
+// Refreshes every building's auto-estimate displays (dumpster, management
+// days, skylight management) — called on any measurement change, since a
+// single shared onMeasureChange() handler doesn't know which building's
+// field changed.
 function updateMgmtEstimateDisplay(){
-  const el = document.getElementById('mgmtAutoDisplay');
-  if(el) el.textContent = fmtDays(mgmtAutoDays());
+  for(let b=0; b<numBuildings; b++){
+    const g = getGC(b);
+    const mEl = document.getElementById('mgmtAutoDisplay_b'+b);
+    if(mEl) mEl.textContent = fmtDays(mgmtAutoDaysFor(b));
+    const dEl = document.getElementById('gcDumpsterDisplay_b'+b);
+    if(dEl) dEl.textContent = fmt(g.dumpster);
+    const skEl  = document.getElementById('gcSkylightMgmtDisplay_b'+b);
+    const skRow = document.getElementById('gcSkylightMgmtRow_b'+b);
+    if(skEl) skEl.textContent = fmt(g.skylightMgmt);
+    if(skRow) skRow.style.display = g.skylightMgmt>0 ? 'flex' : 'none';
+  }
 }
 
 function toggleExtraIW(b, el){
@@ -929,6 +939,31 @@ function buildingCardHTML(b){
         <p id="pvcPriceWarning_b${b}" style="display:none;font-size:11px;color:#b3261e;margin-top:4px;">⚠ PVC board prices haven't been entered yet for one or more selected sizes — update DEFAULT_PVC_PRICES.sizes before quoting this to a client.</p>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-title">General Conditions — ${name.replace(/</g,'&lt;')}</div>
+      <p style="font-size:12px;color:#aaa;margin-bottom:12px;">Dumpster and skylight management are auto-calculated from this building's own measurements. Project management is auto-estimated at 1 day per 50 squares (this building's roof + flat roof area only), min 1 day — override with an exact day count if this building's schedule is already known.</p>
+      <div class="discount-row" style="padding-top:0;border-top:none;">
+        <label>Dumpster (auto):</label>
+        <span id="gcDumpsterDisplay_b${b}" style="font-size:13px;color:#555;">—</span>
+      </div>
+      <div class="discount-row">
+        <label>Mgmt auto estimate:</label>
+        <span id="mgmtAutoDisplay_b${b}" style="font-size:13px;color:#555;">—</span>
+      </div>
+      <div class="tog-group" style="margin:10px 0;">
+        <div class="tog accent" id="togMgmtOverride_b${b}" onclick="toggleMgmtOverride(${b},this)">Manual override</div>
+      </div>
+      <div class="discount-row" id="mgmtDaysRow_b${b}" style="display:none;">
+        <label>Management days:</label>
+        <input class="disc-input" id="mgmtDaysInput_b${b}" type="number" min="0" step="0.5" value="1" oninput="updateMgmtEstimateDisplay(); if(S.page===4) renderSummary();"/>
+        <span style="font-size:13px;color:#555;">days</span>
+      </div>
+      <div class="discount-row" id="gcSkylightMgmtRow_b${b}" style="display:none;">
+        <label>Skylight mgmt (auto):</label>
+        <span id="gcSkylightMgmtDisplay_b${b}" style="font-size:13px;color:#555;">—</span>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1097,6 +1132,33 @@ function getUpgradeCost(){
     total += getUpgradeUnitCost(u) * uqty;
   });
   return total;
+}
+
+// Itemized rows for every CHECKED upgrade (name/qty/unit cost/line cost) —
+// same selection logic as getUpgradeCost() above, just broken out per line
+// instead of summed, for the Internal Cost Sheet's own Optional Upgrades
+// table. Shown at raw $ cost (like the Materials/Labor tables) rather than
+// marked-up sell price — margin is applied once, property-wide, in the
+// Pricing Summary at the bottom of the cost sheet.
+function buildUpgradeCostRows(){
+  let totalCost = 0;
+  const rows = UPGRADES.map(u=>{
+    const chk = document.getElementById('uchk_'+u.id);
+    if(!chk || !chk.classList.contains('on')) return '';
+    const qty = u.id==='warranty' ? getAggTotalSq() : parseFloat(document.getElementById('uqty_'+u.id)?.value||0);
+    if(!qty) return '';
+    const unitCost = getUpgradeUnitCost(u);
+    const lineTotal = unitCost * qty;
+    totalCost += lineTotal;
+    const addOnNote = getGutterAddOnNote(u.id);
+    return `<tr>
+      <td>${u.name}${addOnNote?` <span style="color:#888;font-size:10px">(${addOnNote})</span>`:''}</td>
+      <td style="text-align:center">${fmtQty(qty)} ${u.uom}</td>
+      <td style="text-align:right">${fmtDec(unitCost,2)}</td>
+      <td style="text-align:right"><b>${fmtDec(lineTotal,2)}</b></td>
+    </tr>`;
+  }).filter(Boolean).join('');
+  return { rows, totalCost };
 }
 
 // ── FLAT ROOF / EPDM CALCULATIONS ───────────────────────────────────────────
@@ -1553,16 +1615,21 @@ function calcMaterials(b) {
   return { mats, subtotal, tax, total };
 }
 
-// GC costs (dumpster, management, skylight management) are computed off the
-// SUM of squares and skylight-replace-qty across ALL buildings on the property.
-// Flat roof area counts toward this total too (tear-off debris/area applies
-// regardless of roof type), so it's added in alongside the shingle squares.
-function calcGC(){
-  const sq = getAggTotalSq() + getAggFlatSq();
-  if(!sq) return { dumpster:0, management:0, skylightMgmt:0, permit:0, total:0, mgmtDays:0, mgmtAutoDays:0 };
+// GC costs (dumpster, management, skylight management) — PER BUILDING.
+// Each building gets its own dumpster and its own project-management day
+// estimate, sized off that building's own squares (+ its own flat-roof area
+// and skylight-replace qty) rather than one combined property-wide total —
+// this mirrors how materials/labor are already computed per building, and
+// reflects that a multi-building job typically needs its own dumpster and
+// its own crew/management time at each building.
+function getGC(b){
+  b = b||0;
+  const sq = getTotalSq(b) + getFlatSqFor(b);
+  if(!sq) return { dumpster:0, management:0, skylightMgmt:0, total:0, mgmtDays:0, mgmtAutoDays:0, override:false };
 
-  // Skylight replacements add 0.5 sq each to dumpster waste calc
-  const skylReplace = getAggSklReplaceTotalQty();
+  // Skylight replacements (this building only) add 0.5 sq each to the
+  // dumpster waste calc.
+  const skylReplace = getSklReplaceTotalQty(b);
   const effectiveSq = sq + (skylReplace * 0.5);
 
   // Dumpster always applies — $1,000 per 50 sq (or fraction), min $1,000
@@ -1570,17 +1637,36 @@ function calcGC(){
   const dumpster      = dumpsterUnits * LABOR_RATES.dumpster;
 
   // Management — $300/day. Auto-estimated at 1 day per 50 sq (or fraction),
-  // min 1 day, unless overridden with an exact day count entered on Page 3.
-  const autoDays = mgmtAutoDays();
-  const mgmtDays = S.mgmtOverride
-    ? Math.max(0, parseFloat(document.getElementById('mgmtDaysInput')?.value || 0))
+  // min 1 day, unless this building has a manual override entered on its
+  // own Roof Measurements card.
+  const autoDays = mgmtAutoDaysFor(b);
+  const override = !!(BS[b] && BS[b].mgmtOverride);
+  const mgmtDays = override
+    ? Math.max(0, parseFloat(document.getElementById('mgmtDaysInput_b'+b)?.value || 0))
     : autoDays;
   const management = mgmtDays * LABOR_RATES.management;
 
-  // Skylight management — $300 per 5 skylights replaced (rounded up)
+  // Skylight management — $300 per 5 skylights replaced (rounded up), this building's own qty
   const skylightMgmt = skylReplace > 0 ? Math.ceil(skylReplace / 5) * 300 : 0;
 
-  return { dumpster, management, skylightMgmt, permit:0, total: dumpster + management + skylightMgmt, mgmtDays, mgmtAutoDays: autoDays };
+  return { dumpster, management, skylightMgmt, total: dumpster + management + skylightMgmt, mgmtDays, mgmtAutoDays: autoDays, override };
+}
+
+// Property-wide GC totals — the sum of every building's own getGC(b). Kept
+// as an aggregate for the permit algebra (permit is still solved once for
+// the whole property's final sell price) and for the top-of-summary total
+// rows; per-building detail lives on each building's own `gc` field (see
+// calcAll()) and is what's itemized in the summary/cost-sheet building
+// sections.
+function calcGC(){
+  let dumpster=0, management=0, skylightMgmt=0, mgmtDays=0, anyOverride=false;
+  for(let b=0; b<numBuildings; b++){
+    const g = getGC(b);
+    dumpster += g.dumpster; management += g.management; skylightMgmt += g.skylightMgmt;
+    mgmtDays += g.mgmtDays;
+    if(g.override) anyOverride = true;
+  }
+  return { dumpster, management, skylightMgmt, permit:0, total: dumpster + management + skylightMgmt, mgmtDays, anyOverride };
 }
 
 function calcPermit(sellPrice){
@@ -1598,6 +1684,7 @@ function calcAll(){
   for(let b=0; b<numBuildings; b++){
     const bc = getBaseCost(b);
     const bTax = (S.includeTax && bc.matResult) ? bc.matResult.tax : 0;
+    const bgc = getGC(b);
     baseCost += bc.total;
     taxCost  += bTax;
     buildings.push({
@@ -1606,7 +1693,7 @@ function calcAll(){
       matResult: bc.matResult, flatResult: bc.flatResult, pvcResult: bc.pvcResult,
       labor: bc.labor, chimneyLabor: bc.chimneyLabor, horizWallLabor: bc.horizWallLabor,
       dormerLabor: bc.dormerLabor, cheekwallLabor: bc.cheekwallLabor, skylightLabor: bc.skylightLabor,
-      taxCost: bTax, subtotal: bc.total + bTax,
+      taxCost: bTax, gc: bgc, subtotal: bc.total + bTax + bgc.total,
     });
   }
 
@@ -1816,7 +1903,7 @@ function renderSummary(){
     upgCost>0 ? ['Upgrades', fmt(upgCost)] : null,
     taxCost>0 ? ['Material sales tax (6.25%)', fmt(taxCost)] : null,
     gc.dumpster>0 ? ['Dumpster', fmt(gc.dumpster)] : null,
-    gc.management>0 ? ['Project management ('+fmtDays(gc.mgmtDays)+(S.mgmtOverride?' · manual':'')+')', fmt(gc.management)] : null,
+    gc.management>0 ? ['Project management ('+fmtDays(gc.mgmtDays)+(gc.anyOverride?' · incl. manual override':'')+')', fmt(gc.management)] : null,
     gc.skylightMgmt>0 ? ['Skylight management', fmt(gc.skylightMgmt)] : null,
     gc.permit>0 ? ['Permit (1.5%)', fmt(gc.permit)] : null,
     ['Total cost', fmt(totalCost)],
@@ -1862,6 +1949,16 @@ function renderSummary(){
 
     const laborTotal = bd.labor + bd.chimneyLabor + bd.horizWallLabor + bd.dormerLabor + bd.cheekwallLabor + bd.skylightLabor;
 
+    // General Conditions (dumpster, project management, skylight management)
+    // — this building's own share, computed by getGC(b) off this building's
+    // own measurements. Shown here alongside materials/labor so each
+    // building's full cost (incl. overhead) is visible in one place.
+    const gcBlock = bd.gc.total>0 ? `
+      <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:6px;padding-top:10px"><div class="detail-name" style="font-weight:600">General Conditions</div></div>
+      ${bd.gc.dumpster>0?`<div class="detail-row"><div class="detail-name">Dumpster</div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.dumpster)}</div></div></div>`:''}
+      ${bd.gc.management>0?`<div class="detail-row"><div><div class="detail-name">Project Management</div><div class="detail-sub">${fmtDays(bd.gc.mgmtDays)}${bd.gc.override?' · manual':''}</div></div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.management)}</div></div></div>`:''}
+      ${bd.gc.skylightMgmt>0?`<div class="detail-row"><div class="detail-name">Skylight Management</div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.skylightMgmt)}</div></div></div>`:''}` : '';
+
     // Collapsible per-building card — single-building estimates default open
     // (it's the primary content); multi-building estimates default all
     // collapsed so the page isn't a wall of line items, but each header still
@@ -1871,7 +1968,7 @@ function renderSummary(){
     return `<div class="card acc-card${open?' open':''}" id="${accId}">
       <div class="acc-header" onclick="toggleAccordion('${accId}')">
         <span class="acc-chevron">▸</span>
-        <div class="card-title" style="margin-bottom:0">${bd.name} — Materials &amp; Labor</div>
+        <div class="card-title" style="margin-bottom:0">${bd.name} — Materials, Labor &amp; GC</div>
         <span class="acc-preview">${fmt(bd.subtotal)}</span>
       </div>
       <div class="acc-body">
@@ -1891,8 +1988,9 @@ function renderSummary(){
           <div><div class="detail-name" style="color:#888">Material sales tax (6.25%)</div></div>
           <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.taxCost)}</div></div>
         </div>
+        ${gcBlock}
         <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
-          <div><div class="detail-name" style="font-weight:600">${bd.name} Subtotal (hard cost)</div></div>
+          <div><div class="detail-name" style="font-weight:600">${bd.name} Subtotal (hard cost, incl. GC)</div></div>
           <div class="detail-prices"><div class="detail-sell">${fmt(bd.subtotal)}</div></div>
         </div>
       </div>
@@ -2760,7 +2858,23 @@ function buildingCostSheetSection(bd, col){
       </tr></thead>
       <tbody>${laborRows}</tbody>
     </table>
-    <div style="text-align:right;font-size:12px;font-weight:700;padding:4px 8px 12px">${bd.name} Subtotal (hard cost): ${fmt(bd.subtotal)}</div>
+
+    ${bd.gc.total>0 ? `
+    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0">GENERAL CONDITIONS — ${bd.name}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px">
+      <thead><tr style="background:#eee">
+        <th style="text-align:left;padding:5px 8px">Item</th>
+        <th style="text-align:center;padding:5px 8px">Qty</th>
+        <th style="text-align:right;padding:5px 8px">Rate</th>
+        <th style="text-align:right;padding:5px 8px">Total</th>
+      </tr></thead>
+      <tbody>
+        ${bd.gc.dumpster>0?`<tr><td>Dumpster</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.gc.dumpster)}</b></td></tr>`:''}
+        ${bd.gc.management>0?`<tr><td>Project Management (${fmtDays(bd.gc.mgmtDays)}${bd.gc.override?' · manual':''})</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.gc.management)}</b></td></tr>`:''}
+        ${bd.gc.skylightMgmt>0?`<tr><td>Skylight Management</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.gc.skylightMgmt)}</b></td></tr>`:''}
+      </tbody>
+    </table>` : ''}
+    <div style="text-align:right;font-size:12px;font-weight:700;padding:4px 8px 12px">${bd.name} Subtotal (hard cost, incl. GC): ${fmt(bd.subtotal)}</div>
   `;
 }
 
@@ -2779,12 +2893,22 @@ function generateCostSheet(d){
       <td style="text-align:right"><b>${fmtDec(m.qty*m.price,2)}</b></td>
     </tr>`).join('');
 
+  // Optional Upgrades are property-wide (Page 3), not per-building — itemized
+  // here at raw cost, same convention as the Materials/Labor tables above.
+  const upg = buildUpgradeCostRows();
+
+  // Soft costs = Upgrades + General Conditions + Permit — everything that
+  // isn't sloped/flat/PVC roofing material or base labor. Dumpster/Management/
+  // Skylight Management are itemized per building (see the GENERAL CONDITIONS
+  // table in each building's own section above); this table recaps their
+  // combined total, plus Upgrades and the one property-wide Permit line
+  // (permit is still solved once off the whole property's final sell price).
   const gcRows = `
-    ${d.gc.dumpster>0?`<tr><td>Dumpster</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.dumpster)}</b></td></tr>`:''}
-    ${d.gc.management>0?`<tr><td>Project Management (${fmtDays(d.gc.mgmtDays)}${S.mgmtOverride?' · manual':''})</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.management)}</b></td></tr>`:''}
-    ${d.gc.skylightMgmt>0?`<tr><td>Skylight Management</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.skylightMgmt)}</b></td></tr>`:''}
+    ${upg.totalCost>0?`<tr><td>Optional Upgrades (see table above)</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(upg.totalCost)}</b></td></tr>`:''}
+    ${d.gc.total>0?`<tr><td>General Conditions — all buildings combined (see per-building sections above)</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.total)}</b></td></tr>`:''}
     ${d.gc.permit>0?`<tr><td>Permit (1.5%)</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(d.gc.permit)}</b></td></tr>`:''}
   `;
+  const softCostTotal = upg.totalCost + d.gc.total + d.gc.permit;
 
   return `
   <div style="max-width:750px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px">
@@ -2819,8 +2943,24 @@ function generateCostSheet(d){
     <!-- PER-BUILDING MATERIALS + LABOR -->
     ${buildingSections}
 
-    <!-- GC / PROPERTY-WIDE COSTS -->
-    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0;margin-top:8px">GENERAL CONDITIONS &amp; PERMIT (property-wide)</div>
+    <!-- OPTIONAL UPGRADES (property-wide) -->
+    ${upg.rows ? `
+    <div style="font-weight:700;font-size:13px;color:${col.primary};border-bottom:2px solid ${col.primary};padding-bottom:4px;margin:18px 0 8px">OPTIONAL UPGRADES (property-wide)</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
+      <thead><tr style="background:#eee">
+        <th style="text-align:left;padding:5px 8px">Item</th>
+        <th style="text-align:center;padding:5px 8px">Qty</th>
+        <th style="text-align:right;padding:5px 8px">Unit Cost</th>
+        <th style="text-align:right;padding:5px 8px">Total</th>
+      </tr></thead>
+      <tbody>
+        ${upg.rows}
+        <tr style="border-top:1px solid #ccc"><td colspan="3" style="padding:5px 8px;text-align:right;font-weight:600">Upgrades Subtotal</td><td style="text-align:right;padding:5px 8px;font-weight:600">${fmt(upg.totalCost)}</td></tr>
+      </tbody>
+    </table>` : ''}
+
+    <!-- SOFT COSTS SUMMARY + PERMIT (property-wide) -->
+    <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0;margin-top:8px">SOFT COSTS SUMMARY &amp; PERMIT (property-wide)</div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
       <thead><tr style="background:#eee">
         <th style="text-align:left;padding:5px 8px">Item</th>
@@ -2828,18 +2968,22 @@ function generateCostSheet(d){
         <th style="text-align:right;padding:5px 8px">Rate</th>
         <th style="text-align:right;padding:5px 8px">Total</th>
       </tr></thead>
-      <tbody>${gcRows || '<tr><td colspan="4" style="padding:5px 8px;color:#999">—</td></tr>'}</tbody>
+      <tbody>
+        ${gcRows || '<tr><td colspan="4" style="padding:5px 8px;color:#999">—</td></tr>'}
+        <tr style="border-top:1px solid #ccc"><td colspan="3" style="padding:5px 8px;text-align:right;font-weight:600">Soft Costs Total (upgrades + GC + permit)</td><td style="text-align:right;padding:5px 8px;font-weight:600">${fmt(softCostTotal)}</td></tr>
+      </tbody>
     </table>
 
     <!-- PROFIT SUMMARY -->
     <div style="font-weight:700;font-size:12px;background:${col.primary};color:#fff;padding:6px 10px;border-radius:4px 4px 0 0">PRICING SUMMARY (whole property)</div>
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px">
       <tbody>
-        <tr><td style="padding:5px 8px">Total Cost</td><td style="text-align:right;padding:5px 8px">${fmt(d.totalCost)}</td></tr>
-        <tr><td style="padding:5px 8px">Sell Price (before discount)</td><td style="text-align:right;padding:5px 8px">${fmt(d.final/(1-d.disc/100))}</td></tr>
+        <tr><td style="padding:5px 8px">Total Cost (hard costs + soft costs)</td><td style="text-align:right;padding:5px 8px">${fmt(d.totalCost)}</td></tr>
+        <tr><td style="padding:5px 8px">Total Sell Price (before discount)</td><td style="text-align:right;padding:5px 8px">${fmt(d.final/(1-d.disc/100))}</td></tr>
         ${d.disc>0?`<tr><td style="padding:5px 8px">Field Discount (${d.disc}%)</td><td style="text-align:right;padding:5px 8px;color:#c00">− ${fmt(d.final/(1-d.disc/100)-d.final)}</td></tr>`:''}
-        <tr style="background:#f0f0f0;font-weight:700"><td style="padding:6px 8px">Final Sell Price</td><td style="text-align:right;padding:6px 8px;color:${col.primary};font-size:14px">${fmt(d.final)}</td></tr>
-        <tr><td style="padding:5px 8px">Gross Profit (${d.m}% margin)</td><td style="text-align:right;padding:5px 8px;color:#2d6a4f;font-weight:600">${fmt(d.gp)}</td></tr>
+        <tr style="background:#f0f0f0;font-weight:700"><td style="padding:6px 8px">Total Sell Price (final)</td><td style="text-align:right;padding:6px 8px;color:${col.primary};font-size:14px">${fmt(d.final)}</td></tr>
+        <tr><td style="padding:5px 8px">Gross Margin</td><td style="text-align:right;padding:5px 8px;color:#2d6a4f;font-weight:600">${d.m}%</td></tr>
+        <tr><td style="padding:5px 8px">Gross Profit</td><td style="text-align:right;padding:5px 8px;color:#2d6a4f;font-weight:600">${fmt(d.gp)}</td></tr>
       </tbody>
     </table>
 
@@ -3227,6 +3371,7 @@ function collectBuildingState(b){
     pvcEaveSize: gv('mPvcEaveSize_b'+b),
     pvcRake2pc: !!(BS[b] && BS[b].pvcRake2pc),
     pvcRakeSize1: gv('mPvcRakeSize1_b'+b), pvcRakeSize2: gv('mPvcRakeSize2_b'+b),
+    mgmtOverride: !!(BS[b] && BS[b].mgmtOverride), mgmtDays: gv('mgmtDaysInput_b'+b),
   };
 }
 
@@ -3266,7 +3411,6 @@ function collectFullState(){
     upgrades: collectUpgradeState(),
     pricing: {
       margin: gv('marginPct'), discount: gv('discPct'),
-      mgmtOverride: S.mgmtOverride, mgmtDays: gv('mgmtDaysInput'),
       includeTax: S.includeTax,
     },
   };
@@ -3325,6 +3469,9 @@ function applyBuildingState(b, bd){
   sv('mPvcEaveSize_b'+b, bd.pvcEaveSize);
   setToggleTo(document.getElementById('togPvcRake2pc_b'+b), bd.pvcRake2pc, ()=>togglePvcRake2pc(b, document.getElementById('togPvcRake2pc_b'+b)));
   sv('mPvcRakeSize1_b'+b, bd.pvcRakeSize1); sv('mPvcRakeSize2_b'+b, bd.pvcRakeSize2);
+
+  setToggleTo(document.getElementById('togMgmtOverride_b'+b), bd.mgmtOverride, ()=>toggleMgmtOverride(b, document.getElementById('togMgmtOverride_b'+b)));
+  if(bd.mgmtOverride) sv('mgmtDaysInput_b'+b, bd.mgmtDays);
 }
 
 function applyUpgradeState(upgrades){
@@ -3382,8 +3529,15 @@ function applyFullState(data){
   sv('marginPct', pr.margin || 30);
   setMarginFromInput();
   sv('discPct', pr.discount || 0);
-  setToggleTo(document.getElementById('togMgmtOverride'), pr.mgmtOverride, ()=>toggleMgmtOverride(document.getElementById('togMgmtOverride')));
-  if(pr.mgmtOverride) sv('mgmtDaysInput', pr.mgmtDays);
+  // Backward compat: saves from before General Conditions moved per-building
+  // stored one property-wide override under pricing.mgmtOverride — apply it
+  // to Building 1 only, and only if this save predates per-building mgmt
+  // fields (i.e. data.buildings[0].mgmtOverride is undefined).
+  if(pr.mgmtOverride && data.buildings[0] && data.buildings[0].mgmtOverride === undefined){
+    const el0 = document.getElementById('togMgmtOverride_b0');
+    setToggleTo(el0, true, ()=>toggleMgmtOverride(0, el0));
+    sv('mgmtDaysInput_b0', pr.mgmtDays);
+  }
   const wantTax = pr.includeTax !== false; // default true if the save predates this field
   if(S.includeTax !== wantTax) toggleTax();
 
