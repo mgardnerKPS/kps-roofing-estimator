@@ -427,6 +427,16 @@ let BUILDING_NAMES = ['Building 1'];
 // prevBuildingOrPage1().
 let curBldg = 0;
 
+// Tracks which Optional Upgrades quantity fields the user has manually typed
+// into (keyed "id_bN"), so tentative auto-fills (gutters/I&W default to that
+// building's eaves LF, transition walls to its cheekwall count) keep tracking
+// the underlying measurement on every Page 3 re-render until the user
+// overrides one — see buildUpgradeRowsHTML()/applyUpgradeState(). Session-only
+// (not saved to disk): loading a project file always restores its saved
+// quantities verbatim and marks them touched so they don't drift afterward.
+let upgradeQtyTouched = {};
+function markUpgradeQtyTouched(id, b){ upgradeQtyTouched[id+'_b'+b] = true; }
+
 function newBuildingState(){
   return { extraIW:false, hasFlat:false, flatCoverBoard:false, hasPvcTrim:false, pvcRake2pc:false, mgmtOverride:false };
 }
@@ -1822,6 +1832,7 @@ function setMarginFromInput(){
 function refreshUpgrades(){
   const m = S.margin;
   for(let b=0; b<numBuildings; b++){
+    refreshGutterCRow(b);
     UPGRADES.forEach(u=>{
       const sellEl = document.getElementById('usell_'+u.id+'_b'+b);
       const qtyEl  = document.getElementById('uqty_'+u.id+'_b'+b);
@@ -1829,11 +1840,15 @@ function refreshUpgrades(){
       const qty = parseFloat(qtyEl?.value||0);
       const unitCost = getUpgradeUnitCost(u,b);
       const unitSell = sellPrice(unitCost, m);
+      // When Commercial gutters is priced as an upgrade on top of
+      // Residential, label its sell price "Additional" so it's clear this
+      // is the extra cost, not the full gutter rate.
+      const prefix = (u.id==='gutter_c' && isResidentialActiveFor(b)) ? 'Additional ' : '';
       if(qty>0){
         const totalSell = sellPrice(unitCost * qty, m);
-        sellEl.textContent = `${fmtDec(unitSell,2)}/` + u.uom + (qty>0 ? ` · Total: ${fmt(totalSell)}` : '');
+        sellEl.textContent = `${prefix}${fmtDec(unitSell,2)}/` + u.uom + (qty>0 ? ` · Total: ${fmt(totalSell)}` : '');
       } else {
-        sellEl.textContent = `Sell price: ${fmtDec(unitSell,2)}/${u.uom}`;
+        sellEl.textContent = `${prefix}Sell price: ${fmtDec(unitSell,2)}/${u.uom}`;
       }
     });
   }
@@ -1896,12 +1911,42 @@ function getGutterAddOnNote(id, b){
   return parts.join(', ');
 }
 
+// True when Residential gutters is currently checked on this building —
+// in that state, Commercial gutters is priced as an "upgrade" layered on
+// top of Residential (just the cost difference) rather than as its own
+// full-price system. See getGutterUpgradeDiffUnitCost()/refreshGutterCRow().
+function isResidentialActiveFor(b){
+  const rChk = document.getElementById('uchk_gutter_r_b'+b);
+  return !!(rChk && rChk.classList.contains('on'));
+}
+
+// $/UOM for "upgrading" an already-selected Residential gutter run to
+// Commercial — just the price difference between the two systems (never
+// negative), with MA sales tax added on top of that difference when tax is
+// included, matching how hard cost gets tax added before margin elsewhere
+// in calcAll(). Margin/profit is then layered on top the same way as any
+// other upgrade via sellPrice() wherever this is used.
+function getGutterUpgradeDiffUnitCost(){
+  const cU = UPGRADES.find(u=>u.id==='gutter_c');
+  const rU = UPGRADES.find(u=>u.id==='gutter_r');
+  if(!cU || !rU) return 0;
+  let diff = Math.max(0, cU.unitCost - rU.unitCost);
+  if(S.includeTax) diff *= (1 + MAT_PRICES.taxRate);
+  return diff;
+}
+
 // Total per-unit cost for a PER-BUILDING upgrade on building b — the
 // upgrade's own database/default price, plus gutter add-ons when
 // applicable. (Field-rate upgrades — sheath/framing/siding — are job-wide,
 // not per building, and never reach this function; see
-// getFieldRateUnitCost().)
+// getFieldRateUnitCost().) Commercial gutters is a special case: when
+// Residential is already checked on this building, Commercial is priced as
+// just the cost difference (see getGutterUpgradeDiffUnitCost) instead of
+// its own full rate — add-ons still stack on top either way.
 function getUpgradeUnitCost(u, b){
+  if(u.id==='gutter_c' && isResidentialActiveFor(b)){
+    return getGutterUpgradeDiffUnitCost() + getGutterAddOnCost(u.id, b);
+  }
   return u.unitCost + getGutterAddOnCost(u.id, b);
 }
 
@@ -1941,17 +1986,17 @@ function buildUpgradeRowsHTML(b, m){
     const unitSell = sellPrice(unitCost, m);
     const isWarranty = u.id==='warranty';
     const tentativeQty = getUpgradeTentativeQty(u,b);
-    return `<div class="upg-row">
+    return `<div class="upg-row" id="upgRow_${u.id}_b${b}">
       <div class="upg-top">
-        <div class="upg-name">${u.name}</div>
+        <div class="upg-name" id="upgName_${u.id}_b${b}">${u.name}</div>
 
         <div class="chk" id="uchk_${u.id}_b${b}" onclick="toggleUpgrade('${u.id}',${b})"></div>
       </div>
       <div class="upg-qty" id="uqtyblock_${u.id}_b${b}">
-        <label>${u.label}</label>
+        <label id="upgLabel_${u.id}_b${b}">${u.label}</label>
         ${isWarranty
           ? `<input id="uqty_${u.id}_b${b}" type="number" value="${tentativeQty}" readonly style="background:#f0ede8;color:#aaa;" oninput="refreshUpgrades()"/>`
-          : `<input id="uqty_${u.id}_b${b}" type="number" min="0" value="${tentativeQty}" placeholder="Enter quantity" oninput="refreshUpgrades()"/>`
+          : `<input id="uqty_${u.id}_b${b}" type="number" min="0" value="${tentativeQty}" placeholder="Enter quantity" oninput="markUpgradeQtyTouched('${u.id}',${b}); refreshUpgrades()"/>`
         }
         ${isGutterUpgrade(u.id) ? gutterAddOnHTML(u.id,b) : ''}
         <div class="upg-sell" id="usell_${u.id}_b${b}">Sell price: ${fmtDec(unitSell,2)}/${u.uom}</div>
@@ -2063,6 +2108,7 @@ function renderUpgrades(){
   document.getElementById('upgradesContainer').innerHTML = html;
   for(let b=0; b<numBuildings; b++){
     if(preserved[b]) applyUpgradeState(b, preserved[b]);
+    updateGutterMutex(b);
   }
   renderFieldRateUpgrades();
   refreshUpgrades();
@@ -2077,7 +2123,78 @@ function toggleUpgrade(id, b){
     const qel = document.getElementById('uqty_'+id+'_b'+b);
     if(qel) qel.value = getTotalSq(b).toFixed(1);
   }
+  // Commercial gutters can be layered on top of Residential as a cheaper
+  // "upgrade" (see getGutterUpgradeDiffUnitCost/isResidentialActiveFor) — but
+  // that upgrade only makes sense while Residential is actually in the
+  // estimate. If Residential gets unchecked, drop Commercial's dependent
+  // selection too rather than silently leaving it billed at the cheap
+  // differential rate with no Residential base under it. (Unchecking
+  // Commercial never needs to touch Residential — that direction is fine.)
+  if(id==='gutter_r' && !isOn){
+    const cChk = document.getElementById('uchk_gutter_c_b'+b);
+    const cBlock = document.getElementById('uqtyblock_gutter_c_b'+b);
+    if(cChk && cChk.classList.contains('on')){
+      cChk.classList.remove('on');
+      cBlock?.classList.remove('show');
+    }
+  }
+  if(isGutterUpgrade(id)) updateGutterMutex(b);
   refreshUpgrades();
+}
+
+// Commercial gutters can be selected on its own (full price — in which case
+// Residential no longer makes sense as an alternative and its row is
+// hidden), or layered on top of an already-checked Residential as a cheaper
+// "upgrade" priced at just the cost difference (see
+// getGutterUpgradeDiffUnitCost) — in that case both stay checked and visible
+// together. So Residential's row is hidden only when Commercial is checked
+// WITHOUT Residential; Commercial's own row is never hidden —
+// refreshGutterCRow() just changes its name/label/quantity to reflect
+// whichever mode it's in. Called after every gutter toggle, and once per
+// building whenever the Upgrades cards are (re)built (renderUpgrades()) so a
+// loaded/restored state ends up consistent too.
+function updateGutterMutex(b){
+  const cChk = document.getElementById('uchk_gutter_c_b'+b);
+  const rChk = document.getElementById('uchk_gutter_r_b'+b);
+  if(!cChk || !rChk) return; // gutters not in UPGRADES (e.g. removed from synced pricing)
+  const cOn = cChk.classList.contains('on');
+  const rOn = rChk.classList.contains('on');
+  const rowR = document.getElementById('upgRow_gutter_r_b'+b);
+  if(rowR) rowR.style.display = (cOn && !rOn) ? 'none' : '';
+  refreshGutterCRow(b);
+}
+
+// Keeps Commercial gutters' row in sync with whether it's acting as a
+// standalone full-price system or as an "upgrade" layered on Residential
+// (see isResidentialActiveFor/getGutterUpgradeDiffUnitCost): swaps its
+// displayed name/label between the two modes, and while it's an upgrade,
+// mirrors Residential's quantity (same gutter run — there's no separate
+// footage to enter) and makes the field readonly, the same pattern used for
+// the warranty quantity. Leaving upgrade mode restores normal editing and,
+// if the user never manually touched this quantity, its usual eaves-based
+// tentative value.
+function refreshGutterCRow(b){
+  const cU = UPGRADES.find(u=>u.id==='gutter_c');
+  if(!cU) return;
+  const nameEl = document.getElementById('upgName_gutter_c_b'+b);
+  const labelEl = document.getElementById('upgLabel_gutter_c_b'+b);
+  const qtyEl = document.getElementById('uqty_gutter_c_b'+b);
+  if(!nameEl || !labelEl || !qtyEl) return;
+  if(isResidentialActiveFor(b)){
+    nameEl.textContent = 'Upgrade to ' + cU.name;
+    labelEl.textContent = 'Shares Residential gutter footage';
+    qtyEl.value = document.getElementById('uqty_gutter_r_b'+b)?.value || '';
+    qtyEl.readOnly = true;
+    qtyEl.style.background = '#f0ede8';
+    qtyEl.style.color = '#aaa';
+  } else {
+    nameEl.textContent = cU.name;
+    labelEl.textContent = cU.label;
+    qtyEl.readOnly = false;
+    qtyEl.style.background = '';
+    qtyEl.style.color = '';
+    if(!upgradeQtyTouched['gutter_c_b'+b]) qtyEl.value = getUpgradeTentativeQty(cU, b);
+  }
 }
 
 function toggleTax(){
@@ -3286,16 +3403,33 @@ function getProposalUpsells(d){
       : { name: iwU.name, priceText: fmtDec(sellPrice(iwU.unitCost,m),2)+'/LF' });
   }
 
-  // Gutters — residential and commercial are mutually-relevant upsells;
-  // gutter length isn't a field of its own, so eaves LF (where gutters
-  // actually hang) is used as the estimated footage.
-  ['gutter_r','gutter_c'].forEach(id=>{
-    const u = upgradeById(id);
-    if(!u || isSelected(id)) return;
-    upsells.push(totalEaves>0
-      ? { name: u.name, priceText: fmt(sellPrice(u.unitCost,m)*totalEaves) + ' (est. '+totalEaves.toFixed(0)+' LF)' }
-      : { name: u.name, priceText: fmtDec(sellPrice(u.unitCost,m),2)+'/LF' });
-  });
+  // Gutters — Commercial can stand on its own, or be layered on top of
+  // Residential as a cheaper "upgrade" priced at just the cost difference
+  // (see getGutterUpgradeDiffUnitCost/updateGutterMutex), never the other
+  // way around. So: if Commercial is already in the estimate on ANY
+  // building, there's nothing further to suggest. If Residential is already
+  // in the estimate (and Commercial isn't), suggest only the Commercial
+  // upgrade at the differential rate. Otherwise (neither selected) suggest
+  // both at full price, as before. Gutter length isn't a field of its own,
+  // so eaves LF (where gutters actually hang) is used as the estimated
+  // footage.
+  const gutterR = upgradeById('gutter_r');
+  const gutterC = upgradeById('gutter_c');
+  if(gutterC && !isSelected('gutter_c')){
+    if(gutterR && isSelected('gutter_r')){
+      const diffCost = getGutterUpgradeDiffUnitCost();
+      upsells.push(totalEaves>0
+        ? { name: 'Upgrade to '+gutterC.name, priceText: fmt(sellPrice(diffCost,m)*totalEaves) + ' (est. '+totalEaves.toFixed(0)+' LF)' }
+        : { name: 'Upgrade to '+gutterC.name, priceText: fmtDec(sellPrice(diffCost,m),2)+'/LF' });
+    } else if(!isSelected('gutter_r')){
+      [gutterR, gutterC].forEach(u=>{
+        if(!u) return;
+        upsells.push(totalEaves>0
+          ? { name: u.name, priceText: fmt(sellPrice(u.unitCost,m)*totalEaves) + ' (est. '+totalEaves.toFixed(0)+' LF)' }
+          : { name: u.name, priceText: fmtDec(sellPrice(u.unitCost,m),2)+'/LF' });
+      });
+    }
+  }
 
   // Warranty upgrade.
   const warrU = upgradeById('warranty');
@@ -3743,7 +3877,17 @@ function applyBuildingState(b, bd){
 // Applies saved upgrade selections/quantities/add-ons to ONE building's
 // Optional Upgrades card (must already exist in the DOM — call renderUpgrades()
 // first). Field-rate upgrades are skipped here — see applyFieldRateState().
-function applyUpgradeState(b, upgrades){
+//
+// `markTouched` distinguishes the two callers: renderUpgrades() calls this
+// with its own in-session "preserved" snapshot on every Page 3 re-render —
+// there, a quantity the user never manually edited should keep tracking the
+// underlying measurement (see buildUpgradeRowsHTML's fresh tentativeQty)
+// rather than getting frozen at whatever it showed last time, so that call
+// omits markTouched and this only restores qty for fields already marked
+// touched. Loading a project file (applyFullState) should always restore its
+// saved quantities exactly as saved and treat them as touched from then on —
+// that caller passes markTouched:true.
+function applyUpgradeState(b, upgrades, markTouched){
   if(!upgrades) return;
   UPGRADES.filter(u=>!isFieldRateUpgrade(u.id)).forEach(u=>{
     const saved = upgrades[u.id];
@@ -3752,7 +3896,10 @@ function applyUpgradeState(b, upgrades){
     const block = document.getElementById('uqtyblock_'+u.id+'_b'+b);
     if(chk) chk.classList.toggle('on', !!saved.checked);
     if(block) block.classList.toggle('show', !!saved.checked);
-    if(u.id !== 'warranty') sv('uqty_'+u.id+'_b'+b, saved.qty);
+    if(u.id !== 'warranty'){
+      if(markTouched) upgradeQtyTouched[u.id+'_b'+b] = true;
+      if(markTouched || upgradeQtyTouched[u.id+'_b'+b]) sv('uqty_'+u.id+'_b'+b, saved.qty);
+    }
     if(isGutterUpgrade(u.id)){
       if(saved.color) sv('ugutterColor_'+u.id+'_b'+b, saved.color);
       document.getElementById('ugutterWedges_'+u.id+'_b'+b)?.classList.toggle('on', !!saved.wedges);
@@ -3795,15 +3942,21 @@ function applyFullState(data){
   renderUpgrades();
   for(let b=0; b<numBuildings; b++){
     const bd = data.buildings[b];
-    if(bd && bd.upgrades) applyUpgradeState(b, bd.upgrades);
+    if(bd && bd.upgrades) applyUpgradeState(b, bd.upgrades, true);
   }
   // Backward compat: saves from before Optional Upgrades moved per-building
   // stored one property-wide upgrades object at the top level — apply it to
   // Building 1 only, and only if this save predates per-building upgrade
   // fields (mirrors the mgmtOverride fallback below).
   if(data.upgrades && (!data.buildings[0] || !data.buildings[0].upgrades)){
-    applyUpgradeState(0, data.upgrades);
+    applyUpgradeState(0, data.upgrades, true);
   }
+  // Commercial gutters may need to switch into/out of "upgrade" mode (see
+  // updateGutterMutex()/refreshGutterCRow()) depending on whether Residential
+  // is checked in the loaded file, and Residential's row may need hiding if
+  // the file has Commercial selected on its own — re-check every building
+  // now that the loaded selections are actually in place.
+  for(let b=0; b<numBuildings; b++) updateGutterMutex(b);
 
   if(data.fieldRateUpgrades){
     applyFieldRateState(data.fieldRateUpgrades);
