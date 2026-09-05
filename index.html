@@ -3505,6 +3505,41 @@ function getSelectedUpgradesForProposal(d){
   return list;
 }
 
+// Scope-of-work bullets for a building's checked, quantified Optional
+// Upgrades — mirrors how the flat-roof/PVC-trim bullets above already work
+// their way into the Scope of Work, so gutters/I&W/etc. show up as actual
+// work items in that section too, not just as a price line further down in
+// "Upgrades Included in This Estimate". Same qty>0 gate as everywhere else
+// (a checked-but-unpriced upgrade has nothing to install yet, so it's left
+// out here too — see the isSelected() fix in getProposalUpsells).
+function upgradeScopeBullets(bd){
+  return UPGRADES.filter(u=>!isFieldRateUpgrade(u.id)).map(u=>{
+    const chk = document.getElementById('uchk_'+u.id+'_b'+bd.idx);
+    if(!chk || !chk.classList.contains('on')) return '';
+    const qty = parseFloat(document.getElementById('uqty_'+u.id+'_b'+bd.idx)?.value||0);
+    if(!qty) return '';
+    const measurement = `${fmtQty(qty)} ${u.uom}`;
+    const addOnNote = getGutterAddOnNote(u.id, bd.idx);
+    let text;
+    if(u.id==='gutter_c' && isResidentialActiveFor(bd.idx)){
+      text = `Upgrade to Commercial gutters &amp; downspouts (${measurement})`;
+    } else if(u.id==='gutter_c' || u.id==='gutter_r'){
+      text = `Install new ${u.name} (${measurement}${addOnNote?', '+addOnNote:''})`;
+    } else if(u.id==='iw'){
+      text = `Install additional (3rd row) Ice &amp; Water Shield along eaves (${measurement})`;
+    } else if(u.id==='trans'){
+      text = `Remove and reinstall siding at transition walls (${measurement})`;
+    } else if(u.id==='dorm'){
+      text = `Remove and reinstall siding at dormers (${measurement})`;
+    } else if(u.id==='warranty'){
+      text = `${u.name} included`;
+    } else {
+      text = `${u.name} (${measurement})`;
+    }
+    return `<div>✓ ${text}</div>`;
+  }).filter(Boolean).join('');
+}
+
 function generateProposal(d){
   const mfg = S_mfg;
   const col = MFG_COLORS[mfg];
@@ -3566,6 +3601,7 @@ function generateProposal(d){
         <div>✓ Install all flashing, drip edge, ridge vent, and hip &amp; ridge cap</div>
         ${bd.flatResult?`<div>✓ Install fully-adhered EPDM flat roofing system (${bd.flatResult.area.toFixed(0)} sf)${BS[bd.idx]?.flatCoverBoard?' with cover board':''}</div>`:''}
         ${bd.pvcResult?`<div>✓ Install new PVC trim along eaves${bd.pvcResult.rakes>0?' and rakes'+(bd.pvcResult.rake2pc?' (2-piece)':''):''}</div>`:''}
+        ${upgradeScopeBullets(bd)}
         <div>✓ Full cleanup and haul-away of all debris</div>
       </div>
     </div>`).join('')}
