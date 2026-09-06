@@ -373,7 +373,7 @@ const DEFAULT_UPGRADES = [
   {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls'},
   {id:'dorm',     name:'Siding removal/reinstall — dormers',        unitCost:450, uom:'dormer',  label:'Number of dormers'},
   {id:'warranty', name:'SureStart 5-star warranty',                  unitCost:20,  uom:'sq',      label:'Squares (auto-filled from this building)'},
-  {id:'cheek_flash',    name:'Integrate cheekwall flashing',        unitCost:20,  uom:'LF',      label:'Step flashing length (auto-filled from this building\'s Step Flashing measurement)'},
+  {id:'cheek_flash',    name:'Transition (Cheekwall) Flashing Integration', unitCost:20, uom:'LF', label:'Step flashing length (auto-filled from this building\'s Step Flashing measurement)'},
   {id:'headwall_flash', name:'Headwall flashing integration',       unitCost:20,  uom:'LF',      label:'Flashing length (auto-filled from this building\'s Flashing measurement)'},
   {id:'sheath',   name:'Replace rotted/damaged sheathing',           unitCost:5,   uom:'s.f.',    label:'Square footage (est.)'},
   {id:'framing',  name:'Roof framing repairs',                       unitCost:28.95,uom:'BF',      label:'Board feet (est.)'},
@@ -520,9 +520,46 @@ function getFlatSqFor(b){
   return 0;
 }
 
+// Combined LF of the two flashing-integration upgrades that are actually
+// CHECKED on this building (unchecked = not being done, so it shouldn't add
+// a management day) — feeds the "1 day per 200 LF" component of
+// mgmtAutoDaysFor() below.
+function getFlashingReplacementLF(b){
+  let lf = 0;
+  ['cheek_flash','headwall_flash'].forEach(id=>{
+    const chk = document.getElementById('uchk_'+id+'_b'+b);
+    if(!chk || !chk.classList.contains('on')) return;
+    lf += parseFloat(document.getElementById('uqty_'+id+'_b'+b)?.value||0);
+  });
+  return lf;
+}
+
+// PVC Trim LF (eaves + rakes) for ONE building, 0 if that building doesn't
+// have the PVC Trim section enabled — feeds the "1 day per 200 LF" PVC
+// component of mgmtAutoDaysFor() below.
+function getPvcTrimLF(b){
+  const r = calcPvcTrim(b);
+  return r ? (r.eaves + r.rakes) : 0;
+}
+
+// Auto-estimated management days for ONE building — 1 day per 50 sq (roof +
+// flat) of roofing, PLUS 1 day per 200 LF of cheekwall/headwall flashing
+// replacement actually selected, PLUS 1 day per 200 LF of PVC trim being
+// replaced, each rounded up and each only contributing once there's any of
+// that work at all (so a building with just a small PVC trim job and no
+// roofing still gets a day, rather than 0). Still fully overridable per
+// building via the manual override above (toggleMgmtOverride/mgmtOverride).
 function mgmtAutoDaysFor(b){
   const sq = getTotalSq(b) + getFlatSqFor(b);
-  return sq ? Math.max(1, Math.ceil(sq / 50)) : 0;
+  const sqDays = sq>0 ? Math.max(1, Math.ceil(sq / 50)) : 0;
+
+  const flashLF = getFlashingReplacementLF(b);
+  const flashDays = flashLF>0 ? Math.ceil(flashLF / 200) : 0;
+
+  const pvcLF = getPvcTrimLF(b);
+  const pvcDays = pvcLF>0 ? Math.ceil(pvcLF / 200) : 0;
+
+  return sqDays + flashDays + pvcDays;
 }
 
 function fmtDays(days){
@@ -2801,7 +2838,20 @@ async function syncPricingFromGraph() {
                    CT:  built.IW_OPTIONS.CT.length  ? built.IW_OPTIONS.CT  : DEFAULT_IW_OPTIONS.CT,
                    OC:  built.IW_OPTIONS.OC.length  ? built.IW_OPTIONS.OC  : DEFAULT_IW_OPTIONS.OC };
     VELUX_MODELS = Object.keys(built.VELUX_MODELS).length ? built.VELUX_MODELS : DEFAULT_VELUX_MODELS;
-    UPGRADES = built.UPGRADES.length ? built.UPGRADES : DEFAULT_UPGRADES;
+    // Merge rather than replace: any upgrade added in code (DEFAULT_UPGRADES)
+    // that doesn't have a matching row in the PricingCatalog sheet yet — e.g.
+    // a brand-new upgrade like cheek_flash/headwall_flash the first day it
+    // ships — must still show up, priced at its built-in default, instead of
+    // silently vanishing because the live sync only knows about ids that
+    // already exist in the spreadsheet. Once Mike adds a row for an id, the
+    // synced row takes over and wins (fetched entries listed first / kept).
+    if (built.UPGRADES.length) {
+      const fetchedIds = new Set(built.UPGRADES.map(u => u.id));
+      const missingFromSheet = DEFAULT_UPGRADES.filter(u => !fetchedIds.has(u.id));
+      UPGRADES = built.UPGRADES.concat(missingFromSheet);
+    } else {
+      UPGRADES = DEFAULT_UPGRADES;
+    }
 
     // Flat Roof / EPDM and PVC Trim: merge synced $ prices over the defaults;
     // coverage constants (sf/roll, LF/board, etc.) always stay the DEFAULT_ values
@@ -3555,7 +3605,7 @@ function upgradeScopeBullets(bd){
     } else if(u.id==='dorm'){
       text = `Remove and reinstall siding at dormers (${measurement})`;
     } else if(u.id==='cheek_flash'){
-      text = `Integrate cheekwall flashing (${measurement})`;
+      text = `Transition (cheekwall) flashing integration (${measurement})`;
     } else if(u.id==='headwall_flash'){
       text = `Headwall flashing integration (${measurement})`;
     } else if(u.id==='warranty'){
