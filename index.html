@@ -370,9 +370,11 @@ const DEFAULT_UPGRADES = [
   {id:'iw',       name:'3rd Row of Ice & Water Shield (Eaves)',     unitCost:6,   uom:'LF',      label:'Linear feet of eaves (defaults to this building\'s eaves)'},
   {id:'gutter_c', name:'Commercial gutters & downspouts',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet (defaults to this building\'s eaves)'},
   {id:'gutter_r', name:'Residential gutters & downspouts',  unitCost:19,  uom:'LF',      label:'Total gutter linear feet (defaults to this building\'s eaves)'},
-  {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls (defaults to this building\'s cheekwall count)'},
+  {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls'},
   {id:'dorm',     name:'Siding removal/reinstall — dormers',        unitCost:450, uom:'dormer',  label:'Number of dormers'},
   {id:'warranty', name:'SureStart 5-star warranty',                  unitCost:20,  uom:'sq',      label:'Squares (auto-filled from this building)'},
+  {id:'cheek_flash',    name:'Integrate cheekwall flashing',        unitCost:20,  uom:'LF',      label:'Step flashing length (auto-filled from this building\'s Step Flashing measurement)'},
+  {id:'headwall_flash', name:'Headwall flashing integration',       unitCost:20,  uom:'LF',      label:'Flashing length (auto-filled from this building\'s Flashing measurement)'},
   {id:'sheath',   name:'Replace rotted/damaged sheathing',           unitCost:5,   uom:'s.f.',    label:'Square footage (est.)'},
   {id:'framing',  name:'Roof framing repairs',                       unitCost:28.95,uom:'BF',      label:'Board feet (est.)'},
   {id:'siding',   name:'New vinyl siding replacement',               unitCost:16,  uom:'SF',      label:'Square feet of siding'},
@@ -429,9 +431,11 @@ let curBldg = 0;
 
 // Tracks which Optional Upgrades quantity fields the user has manually typed
 // into (keyed "id_bN"), so tentative auto-fills (gutters/I&W default to that
-// building's eaves LF, transition walls to its cheekwall count) keep tracking
-// the underlying measurement on every Page 3 re-render until the user
-// overrides one — see buildUpgradeRowsHTML()/applyUpgradeState(). Session-only
+// building's eaves LF) keep tracking the underlying measurement on every
+// Page 3 re-render until the user overrides one — see
+// buildUpgradeRowsHTML()/applyUpgradeState(). The warranty and the two
+// flashing-integration upgrades (cheek_flash/headwall_flash) are always
+// readonly/synced instead — see isReadonlyQtyUpgrade(). Session-only
 // (not saved to disk): loading a project file always restores its saved
 // quantities verbatim and marks them touched so they don't drift afterward.
 let upgradeQtyTouched = {};
@@ -876,9 +880,7 @@ function buildingCardHTML(b){
         </div>
       </div>
       <div class="field"><label>Chimneys (ea)</label><input id="mChimneys_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
-      <div class="field"><label>Horizontal Roofline Walls (ea)</label><input id="mHorizWalls_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
       <div class="field"><label>Dormers (ea)</label><input id="mDormers_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
-      <div class="field"><label>Cheekwalls (ea)</label><input id="mCheekwalls_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
       <div class="field"><label>Ice &amp; Water — Additional Eave Row</label>
         <div class="tog-group">
           <div class="tog accent" id="togExtraIW_b${b}" onclick="toggleExtraIW(${b},this)">Add extra row along eaves</div>
@@ -1145,13 +1147,16 @@ function getAggFlatSq(){
 }
 
 function onMeasureChange(){
-  // Keep each building's warranty qty (readonly, always = that building's own
-  // squares) in sync while its checkbox is on.
+  // Keep each building's readonly-qty upgrades (warranty = squares, the two
+  // flashing-integration upgrades = Step Flashing / Flashing) in sync with
+  // their underlying measurement while their checkbox is on.
   for(let b=0; b<numBuildings; b++){
-    const wqty = document.getElementById('uqty_warranty_b'+b);
-    if(wqty && document.getElementById('uchk_warranty_b'+b)?.classList.contains('on')){
-      wqty.value = getTotalSq(b).toFixed(1);
-    }
+    ['warranty','cheek_flash','headwall_flash'].forEach(id=>{
+      const qel = document.getElementById('uqty_'+id+'_b'+b);
+      if(qel && document.getElementById('uchk_'+id+'_b'+b)?.classList.contains('on')){
+        qel.value = getUpgradeTentativeQty({id}, b);
+      }
+    });
   }
   refreshUpgrades();
   updateMgmtEstimateDisplay();
@@ -1168,12 +1173,8 @@ function getBaseCost(b){
   const labor = sq * laborRate;
   const chimneys = parseFloat(document.getElementById('mChimneys_b'+b)?.value||0);
   const chimneyLabor = chimneys * LABOR_RATES.chimney;
-  const horizWalls = parseFloat(document.getElementById('mHorizWalls_b'+b)?.value||0);
-  const horizWallLabor = horizWalls * LABOR_RATES.horizWall;
   const dormers = parseFloat(document.getElementById('mDormers_b'+b)?.value||0);
   const dormerLabor = dormers * LABOR_RATES.dormer;
-  const cheekwalls = parseFloat(document.getElementById('mCheekwalls_b'+b)?.value||0);
-  const cheekwallLabor = cheekwalls * LABOR_RATES.cheekwall;
   const matResult = calcMaterials(b);
   const matCost = matResult ? matResult.subtotal : 0;
   const skylReflashQty = S_skyOp[b]==='reflash' ? parseFloat(document.getElementById('mSkylights_b'+b)?.value||0) : 0;
@@ -1183,9 +1184,9 @@ function getBaseCost(b){
   const flatCost = flatResult ? flatResult.total : 0;
   const pvcResult = calcPvcTrim(b);
   const pvcCost = pvcResult ? pvcResult.total : 0;
-  return { labor, chimneyLabor, horizWallLabor, dormerLabor, cheekwallLabor, skylightLabor,
+  return { labor, chimneyLabor, dormerLabor, skylightLabor,
     matCost, flatCost, pvcCost, matResult, flatResult, pvcResult,
-    total: labor + chimneyLabor + horizWallLabor + dormerLabor + cheekwallLabor + skylightLabor + matCost + flatCost + pvcCost };
+    total: labor + chimneyLabor + dormerLabor + skylightLabor + matCost + flatCost + pvcCost };
 }
 
 // Upgrades are now PER BUILDING (Page 3 renders one Optional Upgrades card
@@ -1390,9 +1391,7 @@ const DEFAULT_LABOR_RATES = {
   steepAdder:   15,   // per sq — added for steep slope jobs
   highAdder:    10,   // per sq — added for high roof jobs
   chimney:     300,   // each
-  horizWall:   300,   // each — horizontal roofline wall
   dormer:      500,   // each
-  cheekwall:   450,   // each
   dumpster:   1000,   // per 50 sq
   management:  300,   // per 50 sq
   permitPct:  0.015,  // 1.5% of sell price
@@ -1766,8 +1765,8 @@ function calcAll(){
       idx: b, name: BUILDING_NAMES[b] || ('Building '+(b+1)),
       sq: getTotalSq(b),
       matResult: bc.matResult, flatResult: bc.flatResult, pvcResult: bc.pvcResult,
-      labor: bc.labor, chimneyLabor: bc.chimneyLabor, horizWallLabor: bc.horizWallLabor,
-      dormerLabor: bc.dormerLabor, cheekwallLabor: bc.cheekwallLabor, skylightLabor: bc.skylightLabor,
+      labor: bc.labor, chimneyLabor: bc.chimneyLabor,
+      dormerLabor: bc.dormerLabor, skylightLabor: bc.skylightLabor,
       taxCost: bTax, gc: bgc, upg: bUpg, subtotal: bc.total + bTax + bgc.total + bUpg.totalCost,
     });
   }
@@ -1959,20 +1958,34 @@ function getFieldRateUnitCost(u){
   return (!isNaN(v) && v>=0) ? v : u.unitCost;
 }
 
+// True for upgrades whose quantity is always derived from a measurement and
+// shown readonly (never hand-typed) — the warranty (this building's squares),
+// and the two flashing-integration upgrades (this building's Step Flashing /
+// Flashing measurements). See getUpgradeTentativeQty()/onMeasureChange().
+function isReadonlyQtyUpgrade(id){
+  return id==='warranty' || id==='cheek_flash' || id==='headwall_flash';
+}
+
 // Tentative quantity to pre-fill when a building's Upgrades card is (re)built —
-// gutters/I&W default to that building's own eaves length, transition walls
-// to its cheekwall count, and the warranty to its own squares (kept
-// readonly, exact). Everything else (dormers, sheathing, framing, siding)
-// stays blank for manual entry since there's no reliable measurement proxy.
+// gutters/I&W default to that building's own eaves length, the warranty to
+// its own squares, and the two flashing-integration upgrades to this
+// building's Step Flashing / Flashing measurements (all three kept readonly,
+// exact — see isReadonlyQtyUpgrade()). Everything else (transition walls,
+// dormers, sheathing, framing, siding) stays blank for manual entry since
+// there's no reliable measurement proxy.
 function getUpgradeTentativeQty(u, b){
   if(u.id==='warranty') return getTotalSq(b).toFixed(1);
   if(u.id==='iw' || u.id==='gutter_c' || u.id==='gutter_r'){
     const eaves = parseFloat(document.getElementById('mEaves_b'+b)?.value||0);
     return eaves>0 ? eaves.toFixed(0) : '';
   }
-  if(u.id==='trans'){
-    const cw = parseFloat(document.getElementById('mCheekwalls_b'+b)?.value||0);
-    return cw>0 ? cw.toFixed(0) : '';
+  if(u.id==='cheek_flash'){
+    const sf = parseFloat(document.getElementById('mStepFlashing_b'+b)?.value||0);
+    return sf.toFixed(0);
+  }
+  if(u.id==='headwall_flash'){
+    const fl = parseFloat(document.getElementById('mFlashing_b'+b)?.value||0);
+    return fl.toFixed(0);
   }
   return '';
 }
@@ -1984,7 +1997,7 @@ function buildUpgradeRowsHTML(b, m){
   return UPGRADES.filter(u=>!isFieldRateUpgrade(u.id)).map(u=>{
     const unitCost = getUpgradeUnitCost(u,b);
     const unitSell = sellPrice(unitCost, m);
-    const isWarranty = u.id==='warranty';
+    const isReadonlyQty = isReadonlyQtyUpgrade(u.id);
     const tentativeQty = getUpgradeTentativeQty(u,b);
     return `<div class="upg-row" id="upgRow_${u.id}_b${b}">
       <div class="upg-top">
@@ -1994,7 +2007,7 @@ function buildUpgradeRowsHTML(b, m){
       </div>
       <div class="upg-qty" id="uqtyblock_${u.id}_b${b}">
         <label id="upgLabel_${u.id}_b${b}">${u.label}</label>
-        ${isWarranty
+        ${isReadonlyQty
           ? `<input id="uqty_${u.id}_b${b}" type="number" value="${tentativeQty}" readonly style="background:#f0ede8;color:#aaa;" oninput="refreshUpgrades()"/>`
           : `<input id="uqty_${u.id}_b${b}" type="number" min="0" value="${tentativeQty}" placeholder="Enter quantity" oninput="markUpgradeQtyTouched('${u.id}',${b}); refreshUpgrades()"/>`
         }
@@ -2119,9 +2132,9 @@ function toggleUpgrade(id, b){
   const block= document.getElementById('uqtyblock_'+id+'_b'+b);
   const isOn = chk.classList.toggle('on');
   block.classList.toggle('show', isOn);
-  if(isOn && id==='warranty'){
+  if(isOn && isReadonlyQtyUpgrade(id)){
     const qel = document.getElementById('uqty_'+id+'_b'+b);
-    if(qel) qel.value = getTotalSq(b).toFixed(1);
+    if(qel) qel.value = getUpgradeTentativeQty({id}, b);
   }
   // Commercial gutters can be layered on top of Residential as a cheaper
   // "upgrade" (see getGutterUpgradeDiffUnitCost/isResidentialActiveFor) — but
@@ -2284,7 +2297,7 @@ function renderSummary(){
         </div>`).join('')}
       <div class="detail-row"><div class="detail-name" style="color:#888">PVC trim labor</div><div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.pvcResult.labor)}</div></div></div>` : '';
 
-    const laborTotal = bd.labor + bd.chimneyLabor + bd.horizWallLabor + bd.dormerLabor + bd.cheekwallLabor + bd.skylightLabor;
+    const laborTotal = bd.labor + bd.chimneyLabor + bd.dormerLabor + bd.skylightLabor;
 
     // General Conditions (dumpster, project management, skylight management)
     // — this building's own share, computed by getGC(b) off this building's
@@ -2343,7 +2356,7 @@ function renderSummary(){
         ${flatBlock}
         ${pvcBlock}
         <div class="detail-row" style="border-bottom:none">
-          <div><div class="detail-name" style="color:#888">Labor subtotal (base + chimneys + walls + dormers + cheekwalls + skylights)</div></div>
+          <div><div class="detail-name" style="color:#888">Labor subtotal (base + chimneys + dormers + skylights)</div></div>
           <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(laborTotal)}</div></div>
         </div>
         <div class="detail-row" style="border-bottom:none">
@@ -2994,25 +3007,52 @@ function getIsoDateStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Triggers a browser download of a Blob — same a[download] pattern as
+// downloadJSON() below, just for an arbitrary Blob/mime type instead of
+// JSON.
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+// Saves the PO Summary (Cost Sheet PDF) to SharePoint AND downloads the same
+// PDF locally. If SharePoint isn't reachable (sign-in fails, offline, etc.)
+// this falls back to a local-download-only save instead of leaving the user
+// with nothing, since the PDF is already rendered by that point.
 async function saveEstimateToSharePoint() {
   const projectId = (document.getElementById('projectId')?.value || '').trim();
   if (!projectId) { setSpStatus('Enter a Project ID on the Project Info page before saving.', true); return; }
   setSpStatus('Preparing PO Summary…');
+  let blob, filename, d;
   try {
-    const d = collectData();
+    d = collectData();
     const html = generateCostSheet(d);
-    const blob = await htmlToPdfBlob(html);
+    blob = await htmlToPdfBlob(html);
+    filename = `${getSafeFileName(d.name)} PO Summary ${getIsoDateStr()}.pdf`;
+  } catch (err) {
+    console.error('PO Summary PDF generation failed', err);
+    setSpStatus('Could not generate the PDF: ' + (err.message || err), true);
+    return;
+  }
+
+  try {
     setSpStatus('Signing in…');
     const token = await getGraphWriteToken();
     setSpStatus('Uploading…');
     const { driveId, rootId } = await getSuiteDrive(token);
     const folderId = await ensurePath(token, driveId, rootId, ['Projects', projectId, 'Estimating', 'Roofing']);
-    const filename = `${getSafeFileName(d.name)} PO Summary ${getIsoDateStr()}.pdf`;
     await uploadFile(token, driveId, folderId, filename, blob);
-    setSpStatus(`Saved to SharePoint: Projects/${projectId}/Estimating/Roofing/${filename}`);
+    downloadBlob(blob, filename);
+    setSpStatus(`Saved to SharePoint (Projects/${projectId}/Estimating/Roofing/${filename}) and downloaded locally.`);
   } catch (err) {
-    console.error('Save to SharePoint failed', err);
-    setSpStatus('Save failed: ' + (err.message || err), true);
+    console.error('Save to SharePoint failed — falling back to local download only', err);
+    downloadBlob(blob, filename);
+    setSpStatus('SharePoint unavailable (' + (err.message || err) + ') — downloaded locally instead.', true);
   }
 }
 
@@ -3118,9 +3158,7 @@ function buildingCostSheetSection(bd, col){
     ${S.steep?`<tr><td>Steep Slope Surcharge</td><td style="text-align:center">${bd.sq.toFixed(1)} sq</td><td style="text-align:right">${fmtDec(LABOR_RATES.steepAdder,2)}/sq</td><td style="text-align:right"><b>${fmt(bd.sq*LABOR_RATES.steepAdder)}</b></td></tr>`:''}
     ${S.high?`<tr><td>High Roof Surcharge</td><td style="text-align:center">${bd.sq.toFixed(1)} sq</td><td style="text-align:right">${fmtDec(LABOR_RATES.highAdder,2)}/sq</td><td style="text-align:right"><b>${fmt(bd.sq*LABOR_RATES.highAdder)}</b></td></tr>`:''}
     ${bd.chimneyLabor>0?`<tr><td>Chimney Labor</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.chimneyLabor)}</b></td></tr>`:''}
-    ${bd.horizWallLabor>0?`<tr><td>Horiz. Roofline Wall Labor</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.horizWallLabor)}</b></td></tr>`:''}
     ${bd.dormerLabor>0?`<tr><td>Dormer Labor</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.dormerLabor)}</b></td></tr>`:''}
-    ${bd.cheekwallLabor>0?`<tr><td>Cheekwall Labor</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.cheekwallLabor)}</b></td></tr>`:''}
     ${bd.skylightLabor>0?`<tr><td>Skylight Labor</td><td style="text-align:center">—</td><td style="text-align:right">—</td><td style="text-align:right"><b>${fmt(bd.skylightLabor)}</b></td></tr>`:''}
   `;
 
@@ -3446,6 +3484,24 @@ function getProposalUpsells(d){
     upsells.push({ name: warrU.name, priceText: fmt(sellPrice(warrU.unitCost,m)*totalSq) });
   }
 
+  // Cheekwall / headwall flashing integration — same pattern as I&W above:
+  // priced off the summed Step Flashing / Flashing measurements across every
+  // building, offered as an upsell only when not already selected anywhere.
+  const totalStepFlashing = d.buildings.reduce((s,bd)=> s + parseFloat(document.getElementById('mStepFlashing_b'+bd.idx)?.value||0), 0);
+  const totalFlashing = d.buildings.reduce((s,bd)=> s + parseFloat(document.getElementById('mFlashing_b'+bd.idx)?.value||0), 0);
+  const cheekU = upgradeById('cheek_flash');
+  if(cheekU && !isSelected('cheek_flash')){
+    upsells.push(totalStepFlashing>0
+      ? { name: cheekU.name, priceText: fmt(sellPrice(cheekU.unitCost,m)*totalStepFlashing) }
+      : { name: cheekU.name, priceText: fmtDec(sellPrice(cheekU.unitCost,m),2)+'/LF' });
+  }
+  const headwallU = upgradeById('headwall_flash');
+  if(headwallU && !isSelected('headwall_flash')){
+    upsells.push(totalFlashing>0
+      ? { name: headwallU.name, priceText: fmt(sellPrice(headwallU.unitCost,m)*totalFlashing) }
+      : { name: headwallU.name, priceText: fmtDec(sellPrice(headwallU.unitCost,m),2)+'/LF' });
+  }
+
   // Next shingle tier up, if the current selection isn't already the top of
   // its manufacturer's line (the "Other — specify in notes" catch-all entry
   // is never treated as a real tier to upgrade into).
@@ -3498,6 +3554,10 @@ function upgradeScopeBullets(bd){
       text = `Remove and reinstall siding at transition walls (${measurement})`;
     } else if(u.id==='dorm'){
       text = `Remove and reinstall siding at dormers (${measurement})`;
+    } else if(u.id==='cheek_flash'){
+      text = `Integrate cheekwall flashing (${measurement})`;
+    } else if(u.id==='headwall_flash'){
+      text = `Headwall flashing integration (${measurement})`;
     } else if(u.id==='warranty'){
       text = `${u.name} included`;
     } else {
@@ -3804,7 +3864,7 @@ function collectBuildingState(b){
     skyOp: S_skyOp[b] || 'none',
     sklReflashQty: gv('mSkylights_b'+b),
     sklReplaceRows: rows,
-    chimneys: gv('mChimneys_b'+b), horizWalls: gv('mHorizWalls_b'+b), dormers: gv('mDormers_b'+b), cheekwalls: gv('mCheekwalls_b'+b),
+    chimneys: gv('mChimneys_b'+b), dormers: gv('mDormers_b'+b),
     extraIW: !!(BS[b] && BS[b].extraIW),
     hasFlat: !!(BS[b] && BS[b].hasFlat),
     flatArea: gv('mFlatArea_b'+b), flatWallTerm: gv('mFlatWallTerm_b'+b), flatOpenEdge: gv('mFlatOpenEdge_b'+b),
@@ -3903,7 +3963,10 @@ function applyBuildingState(b, bd){
   sv('mSkylights_b'+b, bd.sklReflashQty);
   restoreSklReplaceRows(b, bd.sklReplaceRows);
 
-  sv('mChimneys_b'+b, bd.chimneys); sv('mHorizWalls_b'+b, bd.horizWalls); sv('mDormers_b'+b, bd.dormers); sv('mCheekwalls_b'+b, bd.cheekwalls);
+  sv('mChimneys_b'+b, bd.chimneys); sv('mDormers_b'+b, bd.dormers);
+  // bd.horizWalls / bd.cheekwalls (old saves, pre-2026-09-06) are intentionally
+  // no longer applied — those measurements were removed in favor of the
+  // cheekwall/headwall flashing-integration upgrades below.
 
   setToggleTo(document.getElementById('togExtraIW_b'+b), bd.extraIW, ()=>toggleExtraIW(b, document.getElementById('togExtraIW_b'+b)));
   setToggleTo(document.getElementById('togFlatRoof_b'+b), bd.hasFlat, ()=>toggleFlatRoof(b, document.getElementById('togFlatRoof_b'+b)));
