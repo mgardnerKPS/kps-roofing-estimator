@@ -2703,7 +2703,11 @@ async function getGraphToken() {
 }
 
 // Column order in the PricingCatalog Excel table — must match the sheet's header row.
-const PRICING_COLS = ['Title','Module','Category','Manufacturer','ItemKey','UnitCost',
+// Updated 2026-09-27: sheet restructured to add a Manufacturer/Product split
+// (Manufacturer, Product, ItemKey, Title, Module, Category, ...). 'Product' has
+// no consumer here yet — everything below still reads by name (r.Title, r.Manufacturer,
+// etc.), so listing it just keeps this array in sync with the sheet's real column count.
+const PRICING_COLS = ['Manufacturer','Product','ItemKey','Title','Module','Category','UnitCost',
                        'SecondaryCost','UOM','SortOrder','Active','EffectiveDate','InvoiceRef','Notes'];
 
 // Excel table rows come back as plain arrays (one per spreadsheet row) — turn each
