@@ -140,8 +140,157 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .note{font-size:11px;color:#aaa;text-align:center;margin:0.625rem 0.875rem 0;line-height:1.6;}
 
 
+/* SHINGLE COMPARE — inline on Page 1 (compact) and full-screen client view (tablet-first) */
+#compareOverlay{display:none;position:fixed;inset:0;z-index:9000;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#f0ede8;color:#1a1a2e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+#compareOverlay.open{display:block;}
+.cmp-hero{background:linear-gradient(180deg,#14172b,#1d2140);border-radius:0 0 26px 26px;}
+.cmp-wrap{max-width:1120px;margin:0 auto;padding:0 clamp(12px,3vw,32px) 40px;}
+.cmp-hero .cmp-wrap{padding-bottom:6px;}
+.cmp-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0 4px;color:#fff;}
+.cmp-brand{font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:rgba(255,255,255,0.55);}
+.cmp-top-btns{display:flex;gap:8px;}
+.cmp-iconbtn{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff;border-radius:22px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.cmp-iconbtn:active{background:rgba(255,255,255,0.25);}
+.cmp-title{color:#fff;text-align:center;padding:8px 0 22px;}
+.cmp-title h2{font-size:clamp(22px,4.2vw,36px);font-weight:700;letter-spacing:-0.8px;}
+.cmp-title p{font-size:clamp(12px,1.9vw,15px);color:rgba(255,255,255,0.65);margin-top:6px;}
+#cmpFull{padding-top:22px;}
+
+.cmp-inline{margin:2px 0 8px;}
+.cmp-sec{margin-bottom:26px;}
+.cmp-sec:last-of-type{margin-bottom:6px;}
+.cmp-sec-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.cmp-sec-title{font-size:clamp(17px,2.6vw,22px);font-weight:700;letter-spacing:-0.4px;color:#1a1a2e;}
+.cmp-sec-sub{font-size:clamp(12px,1.7vw,14px);color:#6b6e80;margin-top:2px;line-height:1.35;}
+.cmp-sec-btns{display:flex;gap:6px;flex-shrink:0;}
+.cmp-mini{background:#faf9f7;border:1px solid #e0ddd8;color:#3b3f66;border-radius:18px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.cmp-mini:active{background:#f0ede8;}
+.cmp-rep{display:none;background:#fff8e6;border:1px dashed #d9a441;border-radius:12px;padding:10px 12px;margin:0 0 10px;font-size:12px;color:#5b4310;}
+.cmp-rep.open{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;}
+.cmp-rep input[type=number]{width:60px;padding:5px 6px;border:1px solid #d9a441;border-radius:8px;font-size:13px;text-align:center;}
+.cmp-rep b{font-weight:700;}
+.cmp-chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+.cmp-chip{flex:0 0 auto;display:flex;align-items:center;gap:7px;padding:9px 15px;border-radius:24px;border:1.5px solid #d9d5cc;background:#fff;font-size:13px;font-weight:600;color:#3b3f66;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
+.cmp-chip i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.cmp-chip.sel{background:#e97132;border-color:#e97132;color:#fff;}
+.cmp-chip.sel i{box-shadow:0 0 0 2px rgba(255,255,255,0.7);}
+.cmp-chip.brand.sel{color:#fff;}
+.cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:clamp(8px,2vw,22px);align-items:stretch;}
+.cmp-panel{background:#fff;border-radius:20px;box-shadow:0 6px 24px rgba(20,23,43,0.13);overflow:hidden;display:flex;flex-direction:column;min-width:0;border:1px solid #eee9e2;}
+.cmp-panel.up{box-shadow:0 10px 30px rgba(233,113,50,0.25);border:2px solid #e97132;}
+.cmp-panel.sw{box-shadow:0 10px 30px rgba(60,63,122,0.22);border:2px solid #3a3f7a;}
+.cmp-ribbon{font-size:10px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;padding:7px 14px;color:#fff;text-align:center;}
+.cmp-ribbon.base{background:#5d6178;}
+.cmp-ribbon.upg{background:#e97132;}
+.cmp-ribbon.sw{background:#3a3f7a;}
+.cmp-art{height:clamp(90px,16vw,150px);position:relative;overflow:hidden;}
+.cmp-art svg{display:block;width:100%;height:100%;}
+.cmp-art .cmp-brandtag{position:absolute;left:10px;bottom:9px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;font-weight:600;letter-spacing:0.6px;padding:4px 10px;border-radius:14px;}
+.cmp-body{padding:clamp(12px,2.2vw,22px);display:flex;flex-direction:column;gap:12px;flex:1;}
+.cmp-name{font-size:clamp(17px,3vw,26px);font-weight:700;letter-spacing:-0.5px;line-height:1.15;}
+.cmp-tag{font-size:clamp(12px,1.8vw,15px);color:#6b6e80;margin-top:3px;line-height:1.35;}
+.cmp-tier{display:inline-block;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:12px;background:#eceaf5;color:#3b3f66;margin-bottom:6px;}
+.cmp-panel.up .cmp-tier{background:#fde8db;color:#a8481a;}
+.cmp-note{font-size:clamp(11.5px,1.6vw,13px);color:#3b3f66;background:#f3f2fa;border-radius:10px;padding:8px 10px;line-height:1.4;}
+.cmp-feats{list-style:none;display:flex;flex-direction:column;gap:7px;}
+.cmp-feats li{font-size:clamp(12px,1.75vw,14.5px);line-height:1.35;padding-left:24px;position:relative;color:#2b2e45;}
+.cmp-feats li::before{content:'✓';position:absolute;left:0;top:0;width:17px;height:17px;border-radius:50%;background:#e4f3ea;color:#1d7a46;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.cmp-panel.up .cmp-feats li::before{background:#fde8db;color:#c4581f;}
+.cmp-specs{border-top:1px solid #eee9e2;}
+.cmp-spec{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f3f0ea;font-size:clamp(11.5px,1.6vw,13.5px);}
+.cmp-spec:last-child{border-bottom:none;}
+.cmp-spec span:first-child{color:#8a8ca0;flex-shrink:0;}
+.cmp-spec span:last-child{text-align:right;font-weight:600;color:#1a1a2e;}
+.cmp-spec.diff span:last-child{color:#c4581f;}
+.cmp-price{margin-top:auto;border-radius:14px;padding:clamp(10px,1.8vw,16px);text-align:center;}
+.cmp-price.base{background:#f4f2ee;color:#5d6178;}
+.cmp-price.upg{background:linear-gradient(135deg,#e97132,#f08a4d);color:#fff;}
+.cmp-price.save{background:linear-gradient(135deg,#1d7a46,#2f9a5f);color:#fff;}
+.cmp-price.same{background:linear-gradient(135deg,#3a3f7a,#5560a8);color:#fff;}
+.cmp-price small{display:block;font-size:11px;letter-spacing:0.6px;text-transform:uppercase;opacity:0.85;}
+.cmp-price strong{display:block;font-size:clamp(24px,4.6vw,40px);font-weight:800;letter-spacing:-1.2px;line-height:1.1;margin:2px 0;}
+.cmp-price strong span{font-size:0.36em;font-weight:600;letter-spacing:0;margin-left:5px;opacity:0.9;}
+.cmp-price em{display:block;font-style:normal;font-size:clamp(11px,1.6vw,13px);opacity:0.92;line-height:1.35;}
+.cmp-btns{display:flex;flex-wrap:wrap;gap:8px;}
+.cmp-link{flex:1 1 130px;text-align:center;text-decoration:none;padding:11px 12px;border-radius:12px;font-size:clamp(12px,1.7vw,14px);font-weight:600;border:1.5px solid #1a1a2e;color:#1a1a2e;background:#fff;-webkit-tap-highlight-color:transparent;}
+.cmp-link:active{background:#f0ede8;}
+.cmp-link.solid{background:#1a1a2e;color:#fff;}
+.cmp-panel.up .cmp-link{border-color:#e97132;color:#c4581f;}
+.cmp-panel.up .cmp-link.solid{background:#e97132;color:#fff;}
+.cmp-panel.sw .cmp-link{border-color:#3a3f7a;color:#3a3f7a;}
+.cmp-panel.sw .cmp-link.solid{background:#3a3f7a;color:#fff;}
+.cmp-empty{background:#faf9f7;border:1px solid #eee9e2;border-radius:16px;padding:20px;text-align:center;color:#6b6e80;font-size:14px;line-height:1.5;}
+.cmp-foot{font-size:11px;color:#8a8ca0;text-align:center;margin-top:14px;line-height:1.55;}
+
+/* compact mode — used inside the 440px phone-width page and on phones in the full-screen view */
+.cmp-compact .cmp-sec-title{font-size:16px;}
+.cmp-compact .cmp-sec-sub{font-size:12px;}
+.cmp-compact .cmp-chip{padding:8px 13px;font-size:12.5px;}
+.cmp-compact .cmp-grid{gap:8px;}
+.cmp-compact .cmp-panel{border-radius:14px;box-shadow:0 2px 10px rgba(20,23,43,0.1);}
+.cmp-compact .cmp-panel.up{box-shadow:0 4px 14px rgba(233,113,50,0.22);}
+.cmp-compact .cmp-ribbon{font-size:9px;padding:6px 4px;letter-spacing:0.9px;}
+.cmp-compact .cmp-art{height:74px;}
+.cmp-compact .cmp-body{padding:10px;gap:9px;}
+.cmp-compact .cmp-name{font-size:16px;}
+.cmp-compact .cmp-tag{font-size:11.5px;}
+.cmp-compact .cmp-note{font-size:11px;padding:7px 8px;}
+.cmp-compact .cmp-feats{gap:6px;}
+.cmp-compact .cmp-feats li{font-size:11.5px;padding-left:19px;}
+.cmp-compact .cmp-feats li::before{width:13px;height:13px;font-size:8px;}
+.cmp-compact .cmp-spec{flex-direction:column;gap:1px;padding:6px 0;font-size:11px;}
+.cmp-compact .cmp-spec span:last-child{text-align:left;}
+.cmp-compact .cmp-price{padding:10px 8px;}
+.cmp-compact .cmp-price small{font-size:9.5px;}
+.cmp-compact .cmp-price strong{font-size:24px;}
+.cmp-compact .cmp-price em{font-size:10.5px;}
+.cmp-compact .cmp-link{flex-basis:100%;padding:9px 6px;font-size:12px;}
+.cmp-compact .cmp-foot{font-size:10px;}
+
+.cmp-brands{margin:8px 0 10px;}
+.cmp-brands .cmp-sec{margin-bottom:6px;}
+.cmp-bstrip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+.cmp-bcard{border:1.5px solid #e0ddd8;border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;background:#fff;min-width:0;-webkit-tap-highlight-color:transparent;transition:box-shadow .15s,border-color .15s;}
+.cmp-bcard.cur{background:#f4f2ee;cursor:default;}
+.cmp-bcard:not(.cur):active{background:#f0ede8;}
+.cmp-bcard .bn{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#5d6178;display:block;line-height:1.25;}
+.cmp-bcard .bn i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:0;}
+.cmp-bcard .bp{font-size:13px;font-weight:700;color:#1a1a2e;margin:4px 0 3px;line-height:1.15;overflow-wrap:anywhere;}
+.cmp-bcard .bd{font-size:15px;font-weight:800;color:#3b3f66;letter-spacing:-.3px;line-height:1.2;}
+.cmp-bcard .bd.up{color:#c4581f;}
+.cmp-bcard .bd.save{color:#1d7a46;}
+.cmp-bcard .bd.cur{font-size:12px;font-weight:700;color:#5d6178;letter-spacing:0;}
+.cmp-bcard .bh{font-size:10px;color:#9a9cad;margin-top:3px;}
+.cmp-compact .cmp-bcard .bd{font-size:13.5px;}
+.cmp-compact .cmp-bcard .bp{font-size:12px;}
+#cmpFull .cmp-bcard{padding:16px 10px;}
+#cmpFull .cmp-bcard .bn{font-size:12px;}
+#cmpFull .cmp-bcard .bp{font-size:clamp(14px,2vw,18px);}
+#cmpFull .cmp-bcard .bd{font-size:clamp(18px,2.6vw,26px);}
+#cmpFull .cmp-bcard .bd.cur{font-size:14px;}
+#cmpFull .cmp-bstrip{gap:clamp(8px,2vw,18px);}
+
+.cmp-grid.one{grid-template-columns:minmax(0,1fr)!important;max-width:520px;margin-left:auto;margin-right:auto;}
+.cmp-togrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 8px;}
+.cmp-switch{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;}
+.cmp-switch .trk{width:42px;height:24px;border-radius:14px;background:#d9d5cc;position:relative;transition:background .15s;flex-shrink:0;}
+.cmp-switch .trk i{position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s;}
+.cmp-switch.on .trk{background:#e97132;}
+.cmp-switch.on .trk i{transform:translateX(18px);}
+.cmp-switch .lbl{font-size:13px;font-weight:600;color:#3b3f66;}
+.cmp-chip .cd{font-weight:700;font-size:11px;opacity:.8;margin-left:2px;}
+.cmp-bcard .bu{font-size:9.5px;color:#9a9cad;margin-top:-1px;min-height:11px;}
+
+.cmp-panel.bud{box-shadow:0 10px 30px rgba(29,122,70,0.22);border:2px solid #1d7a46;}
+.cmp-ribbon.bud{background:#1d7a46;}
+.cmp-panel.bud .cmp-tier{background:#e4f3ea;color:#1d7a46;}
+.cmp-panel.bud .cmp-link{border-color:#1d7a46;color:#1d7a46;}
+.cmp-panel.bud .cmp-link.solid{background:#1d7a46;color:#fff;}
+.cmp-panel.bud .cmp-spec.diff span:last-child{color:#1d7a46;}
+
 /* PRINT */
 @media print{
+  #compareOverlay{display:none!important;}
   .hdr,.btn-main,.btn-back,.note,.quick-nav{display:none!important;}
   body{background:#fff;}
   .app{max-width:100%;}
@@ -224,22 +373,28 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
           <div class="tog" id="mfgOC" onclick="setMfg('OC')">Owens Corning</div>
         </div>
       </div>
+      <!-- Manufacturer comparison (all three brands vs. the current shingle) — rendered by renderInlineCompare() -->
+      <div id="cmpBrands" class="cmp-brands"></div>
       <div class="field"><label>Shingle Product</label>
-        <select id="shingleProd" onchange="if(S.page===4) renderSummary()"></select>
+        <select id="shingleProd" onchange="if(S.page===4) renderSummary(); cmpTarget=null; renderInlineCompare()"></select>
       </div>
+      <!-- Same-brand upgrade comparison, rendered by renderInlineCompare() (only the selected brand's products) -->
+      <div id="cmpInline" class="cmp-inline"></div>
       <div class="field"><label>Shingle Color</label>
         <input id="shingleColor" placeholder="e.g. Weathered Wood, Charcoal…" oninput="if(S.page===4) renderSummary()"/>
       </div>
       <div class="field"><label>Underlayment Product</label>
-        <select id="underlaymentProd" onchange="onMeasureChange()"></select>
+        <select id="underlaymentProd" onchange="onMeasureChange(); ACC.u.target=null; renderInlineCompare()"></select>
       </div>
+      <div id="cmpUnder" class="cmp-inline"></div>
       <div class="field"><label>Ice &amp; Water Product</label>
-        <select id="iwProd" onchange="onMeasureChange()"></select>
+        <select id="iwProd" onchange="onMeasureChange(); ACC.i.target=null; renderInlineCompare()"></select>
       </div>
+      <div id="cmpIW" class="cmp-inline"></div>
       <div class="field"><label>Labor Conditions (select all that apply)</label>
         <div class="tog-group">
-          <div class="tog accent" id="togSteep" onclick="toggleState('steep',this)">Steep slope +$15/sq</div>
-          <div class="tog accent" id="togHigh" onclick="toggleState('high',this)">High roof +$10/sq</div>
+          <div class="tog accent" id="togSteep" onclick="toggleState('steep',this)">Steep slope</div>
+          <div class="tog accent" id="togHigh" onclick="toggleState('high',this)">High roof</div>
         </div>
       </div>
       <div class="field"><label>Notes</label><input id="projNotes" placeholder="Any additional details..."/></div>
@@ -324,6 +479,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <p class="note">Use Print → Save as PDF to share this quote with your client.</p>
   </div>
 
+</div>
+
+<!-- CLIENT SHINGLE COMPARISON (opened from the Summary page; rendered by renderShingleCompare()) -->
+<div id="compareOverlay">
+  <div class="cmp-hero"><div class="cmp-wrap">
+    <div class="cmp-top">
+      <div class="cmp-brand">Kelly's Property Services</div>
+      <div class="cmp-top-btns"><button class="cmp-iconbtn" onclick="closeShingleCompare()">✕ Close</button></div>
+    </div>
+    <div class="cmp-title">
+      <h2>Good, Better, Best</h2>
+      <p>See what an upgraded shingle adds to your roof — and what it costs.</p>
+    </div>
+  </div></div>
+  <div class="cmp-wrap"><div id="cmpFull"></div></div>
 </div>
 
 <!-- PRINT OVERLAY -->
@@ -1132,6 +1302,7 @@ function onNumBuildingsInput(val){
 }
 
 function goPage(n){
+  if(n===1) renderInlineCompare();   // pick up any measurement / tax changes made on later pages
   if(n===3){ renderUpgrades(); syncMarginInput(); updateMgmtEstimateDisplay(); }
   if(n===4){
     // sync tax button visual to current state
@@ -2620,14 +2791,23 @@ function getShinglePrices(){
   return { shingle: product[1], hipRidge: product[2] };
 }
 
+// Product pre-selected when a manufacturer is chosen (its base line)
+const DEFAULT_SHINGLE_PRODUCT = { GAF:'Timberline HDZ AR', CT:'Landmark', OC:'Duration AR' };
+
 function setMfg(mfg){
+  const prevMfg = S_mfg;
+  const prevProd = document.getElementById('shingleProd')?.value || '';
   S_mfg = mfg;
   ['GAF','CT','OC'].forEach(m=>{
     document.getElementById('mfg'+m).classList.toggle('on', m===mfg);
   });
   const sel = document.getElementById('shingleProd');
   sel.innerHTML = MFG_PRODUCTS[mfg].map(p=>`<option>${p[0]}</option>`).join('');
+  // Same brand re-render (e.g. after a pricing sync) keeps the current pick; a newly chosen brand starts on its default product
+  const want = (prevMfg===mfg && prevProd) ? prevProd : DEFAULT_SHINGLE_PRODUCT[mfg];
+  if(want && [...sel.options].some(o=>o.value===want)) sel.value = want;
   updateAccessoryDropdowns();
+  renderInlineCompare();   // brand changed — comparison only offers this brand's products
 }
 
 // ╔══════════════════════════════════════════════════════════════════════╗
@@ -3621,6 +3801,470 @@ function upgradeScopeBullets(bd){
   }).filter(Boolean).join('');
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+//  CLIENT SHINGLE COMPARISON — "Good, Better, Best" upsell view
+//  Left panel = the shingle currently on the estimate; right panel = a
+//  higher-priced line (chips let the rep/customer pick which). The price bump
+//  is computed exactly like the Draft Proposal's "next shingle tier" upsell
+//  (shingle-bundle + hip&ridge-bundle delta across every building), then
+//  + MA sales tax (when included) and marked up at the UPGRADE margin
+//  (default 35%, editable under the ⚙ rep panel — not the job margin).
+//  Product blurbs come from each manufacturer's public product pages; the
+//  spec rows fall back to "See website" wherever a value wasn't confirmed.
+// ═══════════════════════════════════════════════════════════════════════
+const CMP_BRAND = {
+  GAF: { name:'GAF',           color:'#006b3c', dark:'#00432a', pitch:'GAF’s Timberline family is built around WindProven™ wind warranty coverage, StainGuard Plus™ algae protection and LayerLock® technology.', site:'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/shingles', colors:'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/shingles' },
+  CT:  { name:'CertainTeed',   color:'#003087', dark:'#001c52', pitch:'CertainTeed’s Landmark family features StreakFighter® algae resistance, SureStart™ early-life protection and NailTrak® nailing guides.', site:'https://www.certainteed.com/residential-roofing/products/shingles/', colors:'https://colorview.certainteed.com/' },
+  OC:  { name:'Owens Corning', color:'#c2185b', dark:'#7d0d3a', pitch:'Owens Corning’s Duration family features SureNail® reinforced nailing, StreakGuard® algae resistance and TruDefinition® color.', site:'https://www.owenscorning.com/en-us/roofing/shingles', colors:'https://www.owenscorning.com/en-us/roofing/shingles' },
+};
+const GAF_BASE = 'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/shingles/';
+const CT_BASE  = 'https://www.certainteed.com/products/residential-roofing-products/';
+const CMP_INFO = {
+  'GAF|Timberline HDZ AR': { tier:'Good', art:'dim', url:GAF_BASE+'timberline-hdz', colors:GAF_BASE+'timberline-hdz',
+    tag:"GAF's best-selling architectural shingle — proven, dimensional and dependable.",
+    feats:['LayerLock® technology with the StrikeZone® nailing area','Time-release algae-fighting technology','Class 3 impact resistance — may qualify for insurance discounts','High Definition® and Bold Definition® color collections'],
+    specs:{look:'Dimensional', impact:'UL 2218 Class 3', algae:'25-yr StainGuard Plus™', wind:'15-yr WindProven™*', warranty:'Lifetime limited'} },
+  'GAF|Timberline CS AR': { tier:'Good', art:'dim', url:GAF_BASE,
+    tag:'The Timberline architectural look, built to run cooler.',
+    feats:['Timberline dimensional styling','Reflective, cool-roof granule design to reduce heat absorption','Algae-fighting protection'],
+    specs:{look:'Dimensional', warranty:'Lifetime limited'} },
+  'GAF|Timberline UHDZ': { tier:'Better', art:'deep', url:GAF_BASE+'timberline-uhdz', colors:GAF_BASE+'timberline-uhdz',
+    tag:'Richer color, deeper dimension, and the top impact rating.',
+    feats:['Patented Dual Shadow Line technology for a rich, wood-shake dimension','UltraMat™ high-performance fiberglass mat','30-year StainGuard Plus PRO™ algae protection','Class 4 impact resistance — ask your insurer about discounts'],
+    specs:{look:'Deep dimension', impact:'UL 2218 Class 4', algae:'30-yr StainGuard Plus PRO™', wind:'15-yr WindProven™*', warranty:'Lifetime limited'} },
+  'GAF|Camelot II': { tier:'Designer', art:'slate', url:'https://www.gaf.com/en-us/products/camelot-ii', colors:'https://www.gaf.com/en-us/products/camelot-ii',
+    tag:'Slate-like designer shingle with oversized tabs and European-inspired shapes.',
+    feats:['Artisan-crafted shapes at a fraction of the cost of slate or wood shake','Class 4 impact-resistant construction','Time-release algae-fighting technology with copper microsites','Non-prorated coverage for the first 10 years with a complete GAF system'],
+    specs:{look:'Slate-look designer', impact:'UL 2218 Class 4', algae:'25-yr StainGuard Plus™', wind:'15-yr WindProven™*', warranty:'Lifetime limited'} },
+  'GAF|Slateline': { tier:'Designer', art:'slate', url:GAF_BASE+'designer-shingles',
+    tag:'Designer shingle with the sophisticated, sculpted look of natural slate.',
+    feats:['Slate-inspired designer styling','Part of the GAF designer shingle collection'],
+    specs:{look:'Slate-look designer'} },
+  'CT|Patriot XL': { tier:'Budget option', art:'flat', url:CT_BASE+'patriot-xl', colors:'https://colorview.certainteed.com/',
+    tag:'A budget-friendly CertainTeed shingle with oversized tabs and dramatic shadow bands.',
+    feats:['Oversized 42-inch shingle with dramatic 3-dimensional shadow bands','UL 2218 Class 3 impact resistant','UL Class A fire resistance','Budget-friendly pricing'],
+    specs:{look:'Dimensional shadow bands', impact:'UL 2218 Class 3', warranty:'Lifetime limited'} },
+  'CT|Landmark': { tier:'Good', art:'dim', url:CT_BASE+'landmark', colors:'https://colorview.certainteed.com/',
+    tag:"CertainTeed's classic dimensional shingle — a reliable, attractive everyday roof.",
+    feats:['UL 2218 Class 3 impact resistant','StreakFighter® algae resistance with a 25-year warranty','NailTrak® extra-wide nailing zones and QuadraBond™ layer security','UL Class A fire resistance'],
+    specs:{look:'Dimensional', impact:'UL 2218 Class 3', algae:'25-yr StreakFighter®', wind:'110 mph (160 w/ accessories)', warranty:'Lifetime limited + 10-yr SureStart™'} },
+  'CT|Landmark Pro': { tier:'Better', art:'deep', url:CT_BASE+'landmark-pro', colors:'https://colorview.certainteed.com/',
+    tag:'Heavier-weight construction with 30-year algae protection.',
+    feats:['Multi-layer fiberglass construction — UL 2218 Class 3 impact resistant','StreakFighter® algae resistance with a 30-year warranty','UL Class A fire resistance','Wind rating up to 160 mph with CertainTeed starter and ridge accessories'],
+    specs:{look:'Deep dimension', impact:'UL 2218 Class 3', algae:'30-yr StreakFighter®', wind:'110 mph (160 w/ accessories)', warranty:'Lifetime limited + 10-yr SureStart™'} },
+  'CT|Landmark Premium': { tier:'Best', art:'deep', url:'https://www.certainteed.com/residential-roofing/landmark-premium-shingles/', colors:'https://colorview.certainteed.com/',
+    tag:"CertainTeed's heavyweight designer shingle with top-tier impact resistance.",
+    feats:['UL 2218 Class 4 impact resistant','Heavy-weight designer construction for lasting durability','StreakFighter® algae resistance with a 30-year warranty','UL Class A fire resistance and NailTrak® nailing guides'],
+    specs:{look:'Designer depth', impact:'UL 2218 Class 4', algae:'30-yr StreakFighter®', wind:'110 mph (160 w/ accessories)', warranty:'Lifetime limited + 10-yr SureStart™'} },
+  'OC|Oakridge AR': { tier:'Budget option', art:'flat', url:'https://www.owenscorning.com/en-us/roofing/shingles',
+    tag:'Dimensional Owens Corning shingle at an everyday price.',
+    feats:['Dimensional laminated look','StreakGuard® algae resistance','Backed by an Owens Corning limited warranty'],
+    specs:{look:'Dimensional'} },
+  'OC|Duration AR': { tier:'Good', art:'dim', url:'https://www.owenscorning.com/en-us/roofing/shingles',
+    tag:'Architectural shingle engineered around the SureNail® reinforced nailing zone.',
+    feats:['SureNail® Technology — reinforced nailing zone for strong nail pull-through resistance','StreakGuard® algae resistance with copper-infused granules','Class A fire rating'],
+    specs:{look:'Dimensional', algae:'StreakGuard®', wind:'Up to 130 mph', warranty:'Lifetime limited'} },
+  'OC|TruDefinition Duration AR': { tier:'Better', art:'deep', url:'https://www.owenscorning.com/en-us/roofing/shingles/trudefinition-duration',
+    tag:'Bold contrast and deep dimension in an Owens Corning Duration shingle.',
+    feats:['TruDefinition® color for bold contrast and deep dimension','SureNail® reinforced nailing zone','StreakGuard® algae resistance'],
+    specs:{look:'Deep dimension', algae:'StreakGuard®', wind:'Up to 130 mph', warranty:'Lifetime limited'} },
+  'OC|Berkshire': { tier:'Designer', art:'slate', url:'https://www.owenscorning.com/en-us/roofing/shingles',
+    tag:'Designer-collection shingle with a rich, sculpted look.',
+    feats:['Designer-collection styling','Thicker, more dimensional profile'],
+    specs:{look:'Designer'} },
+  'OC|Woodcrest': { tier:'Designer', art:'shake', url:'https://www.owenscorning.com/en-us/roofing/shingles',
+    tag:'Designer-collection shingle with a natural, textured look.',
+    feats:['Designer-collection styling','Natural, textured appearance'],
+    specs:{look:'Designer'} },
+};
+const CMP_SPEC_ROWS = [['look','Look'],['impact','Impact rating'],['algae','Algae protection'],['wind','Wind coverage'],['warranty','Warranty']];
+
+
+// Deterministic little shingle-roof illustration (no images to load, works offline)
+function cmpArt(key, style, brand){
+  let h = 7; for(const c of key) h = (h*31 + c.charCodeAt(0)) >>> 0;
+  const rnd = () => { h = (h*1664525 + 1013904223) >>> 0; return h/4294967296; };
+  const pals = {
+    flat:  ['#5c606b','#555964','#646874','#5a5e69'],
+    dim:   ['#4d515d','#575b67','#434752','#60646f'],
+    deep:  ['#54473f','#4a4038','#61554b','#3f3730'],
+    slate: ['#48566a','#3d4a5d','#556377','#435066'],
+    shake: ['#6b5443','#5c4737','#785f4c','#503d2f'],
+  };
+  const st = { flat:{w:46,g:3,sh:.16}, dim:{w:46,g:2,sh:.3}, deep:{w:40,g:2,sh:.5}, slate:{w:34,g:2,sh:.42}, shake:{w:44,g:3,sh:.4} }[style] || {w:46,g:3,sh:.2};
+  const pal = pals[style] || pals.flat;
+  const gid = 'cg' + h;
+  let out = `<svg viewBox="0 0 400 150" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${brand.dark}" stop-opacity=".0"/><stop offset="1" stop-color="${brand.dark}" stop-opacity=".78"/></linearGradient></defs>
+    <rect width="400" height="150" fill="${pal[0]}"/>`;
+  const tabH = 34;
+  for(let r=-1; r<6; r++){
+    const y = r*25;
+    let x = -((r%2) ? st.w/2 : 0) - (style==='shake' ? rnd()*20 : 0);
+    while(x < 400){
+      const w = style==='shake' ? st.w*(0.6+rnd()*0.9) : st.w;
+      const fill = pal[Math.floor(rnd()*pal.length)];
+      out += `<rect x="${x.toFixed(1)}" y="${y}" width="${(w-st.g).toFixed(1)}" height="${tabH}" rx="${style==='slate'?1:3}" fill="${fill}"/>`;
+      if(style==='dim' || style==='deep'){
+        out += `<rect x="${(x+4).toFixed(1)}" y="${y+tabH-12}" width="${(w-st.g-8).toFixed(1)}" height="7" rx="2" fill="#000" opacity="${(st.sh*0.6).toFixed(2)}"/>`;
+      }
+      out += `<rect x="${x.toFixed(1)}" y="${y+tabH-5}" width="${(w-st.g).toFixed(1)}" height="5" fill="#000" opacity="${st.sh}"/>`;
+      x += w;
+    }
+  }
+  out += `<rect width="400" height="150" fill="url(#${gid})"/></svg>`;
+  return out;
+}
+
+function cmpAllProducts(){
+  const out = [];
+  ['GAF','CT','OC'].forEach(m => (MFG_PRODUCTS[m]||[]).forEach(p => {
+    if(/^Other/i.test(p[0])) return;
+    out.push({ mfg:m, name:p[0], shingle:p[1], hr:p[2], key:m+'|'+p[0] });
+  }));
+  return out;
+}
+function cmpBase(){
+  const name = document.getElementById('shingleProd')?.value || '';
+  const found = cmpAllProducts().find(p => p.mfg===S_mfg && p.name===name);
+  if(found) return found;
+  const raw = (MFG_PRODUCTS[S_mfg]||[]).find(p => p[0]===name) || (MFG_PRODUCTS[S_mfg]||[])[0] || ['Your shingle',0,0];
+  return { mfg:S_mfg, name:name||raw[0], shingle:raw[1], hr:raw[2], key:S_mfg+'|'+(name||raw[0]) };
+}
+// ── State + shared helpers ────────────────────────────────────────────────
+// Price differences are always measured from each brand's BASE shingle (HDZ / Landmark / Duration), per square:
+//   (product bundle price − base bundle price) × 3.15 bundles/sq (3 + 5% waste, same as the materials list)
+//   × (1 + MA sales tax, when included) ÷ (1 − upgrade margin, default 35%)  → rounded to the nearest $1.
+var cmpReady = false;            // var (hoisted) so setMfg()/goPage() can call renderInlineCompare() before this block has run
+const CMP_BASE_NAME = { GAF:'Timberline HDZ AR', CT:'Landmark', OC:'Duration AR' };
+// Base shingle the UPGRADE comparison starts from (left panel). Lower-priced lines (e.g. CertainTeed Patriot XL) show as budget options with a price reduction.
+const CMP_UPGRADE_BASE_NAME = { GAF:'Timberline HDZ AR', CT:'Landmark', OC:'Duration AR' };
+const CMP_BUNDLES_PER_SQ = 3 * 1.05;
+let cmpCfg = { margin:35, tax:null, repOpen:false };   // tax:null = follow the estimate's "include sales tax" setting
+let cmpBrandOn = false;          // "Compare brands" toggle (Page 1, under the manufacturer buttons)
+let cmpUpOn = false;             // "Compare upgrades" toggle (Page 1, under the shingle product)
+let cmpTarget = null;            // upgrade product picked in the comparison (product key)
+let cmpBrandSel = null;          // other manufacturer opened side-by-side
+
+function cmpTierOf(p){ return (CMP_INFO[p.key]||{}).tier || ''; }
+function cmpBrandBase(m){
+  const list = cmpAllProducts().filter(p=>p.mfg===m);
+  return list.find(p=>p.name===CMP_BASE_NAME[m]) || list[0] || null;
+}
+function cmpUpgradeBase(m){
+  const list = cmpAllProducts().filter(p=>p.mfg===m);
+  return list.find(p=>p.name===CMP_UPGRADE_BASE_NAME[m]) || cmpBrandBase(m);
+}
+function cmpTaxOn(){ return cmpCfg.tax===null ? !!S.includeTax : cmpCfg.tax; }
+function cmpIsCompact(mode){ return mode==='inline' ? true : window.innerWidth < 620; }
+function cmpDiffPerSq(baseP, t){
+  const m = Math.min(60, Math.max(1, cmpCfg.margin||35));
+  const mult = cmpTaxOn() ? 1 + MAT_PRICES.taxRate : 1;
+  return sellPrice((t.shingle - baseP.shingle) * CMP_BUNDLES_PER_SQ * mult, m);
+}
+function cmpDiffText(v){ const r = Math.round(v); return r===0 ? 'Same' : r<0 ? '−'+fmt(-r) : '+'+fmt(r); }
+function cmpPriceBox(diff, upgradeMode, baseP){
+  const r = Math.round(diff);
+  const sub = `${cmpTaxOn()?'materials + sales tax':'materials'} · vs. ${baseP.name.replace(/ AR$/,'')}`;
+  if(r===0) return `<div class="cmp-price same"><small>Price difference</small><strong>Same price</strong><em>${sub}</em></div>`;
+  if(r<0)   return `<div class="cmp-price save"><small>You would save</small><strong>${fmt(-r)}<span>per square</span></strong><em>${sub}</em></div>`;
+  return `<div class="cmp-price upg"><small>${upgradeMode?'Upgrade investment':'Price difference'}</small><strong>+${fmt(r)}<span>per square</span></strong><em>${sub}</em></div>`;
+}
+function cmpBasePriceBox(){ return `<div class="cmp-price base"><small>Starting point</small><strong>Base</strong><em>Included in your base price</em></div>`; }
+function cmpFootHtml(){
+  return `<div class="cmp-foot">*Wind warranty coverage requires qualifying manufacturer accessories and installation. Product details come from each manufacturer’s website and can change — use “View on” for the latest specs and “View Colors” for the current color line-up. Price differences are per square of shingle material${cmpTaxOn()?' plus sales tax':''}, measured from the base shingle, and are added to the quote if an upgrade is selected.</div>`;
+}
+
+// One product panel. kind: 'base' | 'up' | 'sw'
+function cmpPanel(p, kind, o){
+  const brand = CMP_BRAND[p.mfg];
+  const info = CMP_INFO[p.key] || { tier:'', art:'flat', tag:'See the manufacturer website for full product details.', feats:[], specs:{} };
+  const baseInfo = o.baseInfo;
+  const rows = CMP_SPEC_ROWS.map(([k,label]) => {
+    const v = info.specs[k] || 'See website';
+    const bv = baseInfo ? (baseInfo.specs[k] || 'See website') : v;
+    const diff = kind!=='base' && baseInfo && v!=='See website' && v!==bv;
+    return `<div class="cmp-spec${diff?' diff':''}"><span>${label}</span><span>${v}</span></div>`;
+  }).join('');
+  const feats = info.feats.slice(0, o.compact ? 3 : 6);
+  const ribbon = kind==='up' ? '★ Upgrade option' : kind==='bud' ? '✓ Budget option' : kind==='sw' ? ('Compare: ' + brand.name) : 'Base shingle';
+  const note = (kind==='sw' || o.note) ? `<div class="cmp-note">${brand.pitch}</div>` : '';
+  return `<div class="cmp-panel ${kind}">
+    <div class="cmp-ribbon ${kind==='up'?'upg':kind==='bud'?'bud':kind==='sw'?'sw':'base'}">${ribbon}</div>
+    <div class="cmp-art">${cmpArt(p.key, info.art, brand)}<span class="cmp-brandtag">${brand.name}</span></div>
+    <div class="cmp-body">
+      <div><div class="cmp-tier">${info.tier || 'Shingle'}</div><div class="cmp-name">${p.name.replace(/ AR$/,'')}</div><div class="cmp-tag">${info.tag}</div></div>
+      ${note}
+      ${feats.length ? `<ul class="cmp-feats">${feats.map(f=>`<li>${f}</li>`).join('')}</ul>` : ''}
+      <div class="cmp-specs">${rows}</div>
+      ${o.price}
+      <div class="cmp-btns">
+        <a class="cmp-link solid" href="${info.url || brand.site}" target="_blank" rel="noopener noreferrer">🌐 View on ${brand.name}</a>
+        <a class="cmp-link" href="${info.colors || info.url || brand.colors}" target="_blank" rel="noopener noreferrer">🎨 View Colors</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Product chips for the selected brand — each shows its per-square difference from the base
+function cmpChipsHtml(list, selKey, baseP){
+  return `<div class="cmp-chips">` + list.map(p => {
+    const sel = p.key===selKey ? ' sel' : '';
+    return `<div class="cmp-chip${sel}" data-act="prod" data-val="${p.key}"><i style="background:${CMP_BRAND[p.mfg].color}"></i>${p.name.replace(/ AR$/,'')}<b class="cd">${cmpDiffText(cmpDiffPerSq(baseP,p))}</b></div>`;
+  }).join('') + `</div>`;
+}
+function cmpSwitchHtml(act, on, label, extra){
+  return `<div class="cmp-togrow"><div class="cmp-switch${on?' on':''}" data-act="${act}" role="switch" aria-checked="${on}"><span class="trk"><i></i></span><span class="lbl">${label}</span></div>${extra||''}</div>`;
+}
+
+// ── Upgrade comparison (under the Shingle Product dropdown) — the selected brand's products only ──
+function cmpUpgradeHtml(mode){
+  const compact = cmpIsCompact(mode), full = mode==='full';
+  const cur = cmpBase(), brand = cur.mfg, brandName = CMP_BRAND[brand].name;
+  const baseP = cmpUpgradeBase(brand);
+  const rootCls = `cmp-root${compact?' cmp-compact':''}`;
+  const btns = `<div class="cmp-sec-btns"><button class="cmp-mini" data-act="rep" title="Rep price settings">⚙</button>${full?'':'<button class="cmp-mini" data-act="full">⤢ Client view</button>'}</div>`;
+  const head = full
+    ? `<div class="cmp-sec-head"><div><div class="cmp-sec-title">Upgrade your ${brandName} shingle</div><div class="cmp-sec-sub">Price difference per square from the ${baseP?baseP.name.replace(/ AR$/,''):''} base.</div></div>${btns}</div>`
+    : cmpSwitchHtml('tgUp', cmpUpOn, 'Compare upgrades', btns);
+  if(!full && !cmpUpOn) return `<div class="${rootCls}">${head}</div>`;
+  if(!baseP) return `<div class="${rootCls}">${head}</div>`;
+
+  const taxOn = cmpTaxOn();
+  const repHtml = cmpCfg.repOpen ? `<div class="cmp-rep open"><span><b>Rep only</b> — price settings, not shown to the customer:</span>
+      <label>Upgrade margin <input type="number" min="1" max="60" step="0.5" value="${cmpCfg.margin}" data-act="margin"/> %</label>
+      <label><input type="checkbox" data-act="tax" ${taxOn?'checked':''}/> Include MA sales tax (${(MAT_PRICES.taxRate*100).toFixed(2).replace(/\.?0+$/,'')}%)</label></div>` : '';
+  const list = cmpAllProducts().filter(p=>p.mfg===brand && p.key!==baseP.key).sort((x,y)=>x.shingle-y.shingle);   // lowest → highest
+  let body;
+  if(!list.length){
+    body = `<div class="cmp-empty">No other ${brandName} lines to compare.</div>`;
+  } else {
+    if(!list.find(p=>p.key===cmpTarget)){
+      // default: the product picked in the dropdown (if it isn't the base), else the first "Better" line
+      cmpTarget = (list.find(p=>p.key===cur.key) || list.find(p=>cmpTierOf(p)==='Better') || list.find(p=>cmpDiffPerSq(baseP,p)>0) || list[0]).key;
+    }
+    const target = list.find(p=>p.key===cmpTarget);
+    const baseInfo = CMP_INFO[baseP.key] || { specs:{} };
+    const tDiff = cmpDiffPerSq(baseP, target);
+    body = cmpChipsHtml(list, cmpTarget, baseP) + `<div class="cmp-grid">` +
+      cmpPanel(baseP,'base',{compact, price:cmpBasePriceBox()}) +
+      cmpPanel(target, Math.round(tDiff)<0 ? 'bud' : 'up', {compact, baseInfo, price:cmpPriceBox(tDiff, true, baseP)}) + `</div>`;
+  }
+  return `<div class="${rootCls}">${head}${repHtml}${body}</div>`;
+}
+
+// ── Manufacturer comparison (under the Shingle Manufacturer buttons) — manufacturer differences only ──
+// Each brand's BASE shingle (HDZ / Landmark / Duration), priced per square against the selected brand's base.
+// Hidden until "Compare brands" is switched on; tapping another brand's card then opens the side-by-side panels.
+function cmpBrandsHtml(mode){
+  const compact = cmpIsCompact(mode), full = mode==='full';
+  const cur = cmpBase(), curBase = cmpBrandBase(cur.mfg);
+  const rootCls = `cmp-root${compact?' cmp-compact':''}`;
+  const head = full
+    ? `<div class="cmp-sec-head"><div><div class="cmp-sec-title">Compare manufacturers</div><div class="cmp-sec-sub">Each brand’s base shingle, priced per square against ${CMP_BRAND[cur.mfg].name}’s.</div></div></div>`
+    : cmpSwitchHtml('tgBrand', cmpBrandOn, 'Compare brands');
+  if((!full && !cmpBrandOn) || !curBase) return `<div class="${rootCls}">${head}</div>`;
+
+  const cards = ['GAF','CT','OC'].map(m => {
+    const br = CMP_BRAND[m], bp = cmpBrandBase(m);
+    if(!bp) return '';
+    const isCur = m===cur.mfg, sel = m===cmpBrandSel;
+    const diff = isCur ? `<div class="bd cur">Your brand ✓</div>` : (() => {
+      const v = cmpDiffPerSq(curBase, bp), r = Math.round(v);
+      return `<div class="bd${r<0?' save':r>0?' up':''}">${r===0?'Same price':cmpDiffText(v)}</div><div class="bu">${r===0?'':'per square'}</div>`;
+    })();
+    return `<div class="cmp-bcard${isCur?' cur':''}${sel?' sel':''}" data-act="bsel" data-val="${m}" style="${sel?`border-color:${br.color};box-shadow:0 0 0 2px ${br.color}33`:''}">
+      <div class="bn"><i style="background:${br.color}"></i>${br.name}</div>
+      <div class="bp">${bp.name.replace(/ AR$/,'')}</div>${diff}
+      <div class="bh">${sel?'tap to hide':isCur?'tap for details':'tap to compare'}</div></div>`;
+  }).join('');
+
+  let expanded = '';
+  if(cmpBrandSel){
+    const bt = cmpBrandBase(cmpBrandSel);
+    if(bt && cmpBrandSel===cur.mfg){
+      expanded = `<div class="cmp-grid one">` + cmpPanel(curBase,'base',{compact, note:true, price:cmpBasePriceBox()}) + `</div>`;
+    } else if(bt){
+      const baseInfo = CMP_INFO[curBase.key] || { specs:{} };
+      expanded = `<div class="cmp-grid">` +
+        cmpPanel(curBase,'base',{compact, note:true, price:cmpBasePriceBox()}) +
+        cmpPanel(bt,'sw',{compact, baseInfo, price:cmpPriceBox(cmpDiffPerSq(curBase,bt), false, curBase)}) + `</div>`;
+    }
+  }
+  return `<div class="${rootCls}"><div class="cmp-sec cmp-brandsec">${head}<div class="cmp-bstrip">${cards}</div>${expanded}</div></div>`;
+}
+
+function cmpRenderInto(el, html){
+  if(!el) return;
+  const keep = [...el.querySelectorAll('.cmp-chips')].map(c=>c.scrollLeft);   // don't snap the chip rows back to the start
+  el.innerHTML = html;
+  el.querySelectorAll('.cmp-chips').forEach((c,i)=>{ if(keep[i]) c.scrollLeft = keep[i]; });
+}
+function renderFullCompare(){
+  cmpRenderInto(document.getElementById('cmpFull'), cmpBrandsHtml('full') + cmpUpgradeHtml('full') + cmpFootHtml() + accHtml('u','full') + accHtml('i','full') + accFootHtml('u'));
+}
+function renderInlineCompare(){
+  if(!cmpReady) return;
+  cmpRenderInto(document.getElementById('cmpBrands'), cmpBrandsHtml('inline') + (cmpBrandOn ? cmpFootHtml() : ''));
+  cmpRenderInto(document.getElementById('cmpInline'), cmpUpgradeHtml('inline') + (cmpUpOn ? cmpFootHtml() : ''));
+  cmpRenderInto(document.getElementById('cmpUnder'), accHtml('u','inline') + (ACC.u.on ? accFootHtml('u') : ''));
+  cmpRenderInto(document.getElementById('cmpIW'), accHtml('i','inline') + (ACC.i.on ? accFootHtml('i') : ''));
+}
+function renderAllCompare(){
+  renderInlineCompare();
+  if(document.getElementById('compareOverlay').classList.contains('open')) renderFullCompare();
+}
+function openShingleCompare(){
+  const ov = document.getElementById('compareOverlay');
+  renderFullCompare();
+  ov.classList.add('open'); ov.scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+}
+function closeShingleCompare(){
+  document.getElementById('compareOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function cmpHandle(e){
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.dataset.act, val = el.dataset.val;
+  if(e.type==='click'){
+    if(act==='tgBrand'){ cmpBrandOn = !cmpBrandOn; if(!cmpBrandOn) cmpBrandSel = null; }
+    else if(act==='tgUp') cmpUpOn = !cmpUpOn;
+    else if(act==='prod') cmpTarget = val;
+    else if(act==='bsel') cmpBrandSel = (cmpBrandSel===val) ? null : val;
+    else if(act==='rep') cmpCfg.repOpen = !cmpCfg.repOpen;
+    else if(act==='tgU') ACC.u.on = !ACC.u.on;
+    else if(act==='tgI') ACC.i.on = !ACC.i.on;
+    else if(act==='pu') ACC.u.target = val;
+    else if(act==='pi') ACC.i.target = val;
+    else if(act==='full'){ openShingleCompare(); return; }
+    else return;
+  } else if(e.type==='change'){
+    if(act==='margin') cmpCfg.margin = Math.min(60, Math.max(1, parseFloat(el.value)||35));
+    else if(act==='tax') cmpCfg.tax = el.checked;
+    else return;
+    setTimeout(renderAllCompare, 0);   // re-render after the field's blur/change finishes (avoids replacing the DOM mid-event)
+    return;
+  }
+  renderAllCompare();
+}
+['cmpBrands','cmpInline','cmpFull','cmpUnder','cmpIW'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('click', cmpHandle);
+  el.addEventListener('change', cmpHandle);
+});
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeShingleCompare(); });
+window.addEventListener('resize', () => { if(document.getElementById('compareOverlay').classList.contains('open')) renderAllCompare(); });
+
+// ══ Underlayment + Ice & Water comparison (same idea as shingles) ══════════
+// Base = the FIRST product in the brand's list (GAF Tiger Paw / CT Roof Runner / OC Deck Defense; GAF WeatherWatch / CT WinterGuard Sand / OC WeatherLock Mat).
+// Per-square difference = (roll price difference ÷ squares each roll covers in the estimate) × sales tax ÷ (1 − margin), rounded to $1.
+//   Underlayment: 10-sq roll, 9 sq net + 10% waste (same as the materials list) → 1.1/9 rolls per square.   Ice & Water: 2-sq roll → 0.5 roll per square.
+var ACC = {
+  u:{ on:false, target:null, title:'Underlayment', per:1.1/9, cover:'per square of roof deck' },
+  i:{ on:false, target:null, title:'Ice & Water', per:0.5,   cover:'per square of ice & water covered' }
+};
+const ACC_INFO = {
+ 'tiger paw':{tier:'Premium synthetic', art:'roll', tag:'Premium synthetic roof deck protection built for strength and walkability.', feats:['At least 600% greater tear strength than #30 felt','Resists wrinkling & buckling that can telegraph through shingles','UV-stabilized polypropylene — resists rot and brittleness','Meets UL 790 Class A fire rating'], specs:{type:'Synthetic polypropylene',water:'Water resistant (not waterproof)',uv:'Up to 180 days',walk:'Slip-resistant surface',warranty:'Counts toward GAF Lifetime Roofing System'}, url:'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/roof-deck-protection/tiger-paw-premium-roof-deck-protection'},
+ 'deck-armor':{tier:'Premium breathable', art:'roll', tag:'Strength plus breathability to help keep trapped moisture out of the roof system.', feats:['Breathable — helps reduce moisture trapped in the roof system','600% greater tear strength than #30 felt','48-inch roll gives 33% more coverage per course than 36-inch felt','Lighter than felt (about 43 lbs per roll)'], specs:{type:'Breathable synthetic',water:'Water resistant (not waterproof)',uv:'Up to 180 days',walk:'Slip-resistant, even on steep pitches',warranty:'Counts toward GAF Lifetime Roofing System'}, url:'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/roof-deck-protection/deck-armor-premium-breathable-roof-deck-protection'},
+ 'feltbuster':{tier:'Entry-level synthetic', art:'roll', tag:'Economical synthetic protection — a big step up from felt.', feats:['About 25x stronger than #15 felt (per industry sources)','Non-skid surface for safer footing','Lays flat without wrinkling for easier shingle placement','Lightweight and easy to handle'], specs:{type:'Synthetic',water:'Sheds water',uv:'Up to 90 days',walk:'Non-skid surface'}, url:'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/roof-deck-protection'},
+ 'roof runner':{tier:'Synthetic underlayment', art:'roll', tag:'Scrim-reinforced synthetic underlayment with a slip-resistant surface.', feats:['High-strength woven construction for wind resistance','Slip-resistant surface for safer footing','Water-repellent top layer sheds water quickly','Takes on the same warranty period as the CertainTeed shingle above it'], specs:{type:'Scrim-reinforced synthetic',water:'Water resistant',walk:'Slip-resistant surface',warranty:'Matches CertainTeed shingle warranty period'}, url:'https://www.certainteed.com/products/residential-roofing-products/roofrunner'},
+ 'diamonddeck':{tier:'Premium synthetic', art:'roll', tag:'Premium synthetic underlayment that resists tears, punctures and impacts.', feats:['Resists tears, punctures and impacts','Slip-resistant surface for secure footing on steep roofs','Superior water-resistant barrier helps prevent moisture intrusion','Fire, wind and wind-driven-rain resistant'], specs:{type:'Premium synthetic',water:'Superior water-resistant barrier',walk:'Slip-resistant surface'}, url:'https://www.certainteed.com/products/residential-roofing-products/diamonddeck'},
+ 'deck defense':{tier:'Synthetic', art:'roll', tag:'Owens Corning high-performance synthetic that lays flat and stays flat, even when wet.', feats:['48-inch, 10-square roll — 33% more coverage per course than standard felt','Textured slip-resistant top layer for secure footing','Preprinted nailing patterns and overlap guides speed installation','Light grey color runs cooler than black felt'], specs:{type:'High-performance synthetic',water:'Repels water; won’t absorb or curl',uv:'Up to 6 months',walk:'Textured slip-resistant',warranty:'30-year limited'}, url:'https://owenscorning.com/en-us/roofing/components/products/deck-defense'},
+ 'proarmor':{tier:'Premium synthetic', art:'roll', tag:'Strong, durable synthetic that repels water, with Fusion Back Coating® for traction.', feats:['Fusion Back Coating® — traction on steep slopes and fewer tears around fasteners','Up to 4x lighter than felt underlayment','Won’t absorb water; inert to mold','42-inch × 286-ft roll covers about 929 sq ft'], specs:{type:'Synthetic with Fusion Back Coating®',water:'Sheds water; won’t absorb',uv:'Up to 90 days',walk:'Slip-resistant surface',warranty:'10-year limited'}, url:'https://owenscorning.com/en-us/roofing/products/proarmor'},
+ 'weatherwatch':{tier:'Mineral-surfaced', art:'membrane', tag:'Self-sealing ice & water barrier for eaves, valleys and other leak-prone areas.', feats:['Helps protect against wind-driven rain and ice dams','Self-seals around nails to reduce leak risk','Fiberglass-reinforced — resists buckling and wrinkling','Meets code for ice & leak barrier in northern climates'], specs:{surface:'Mineral surface',temp:'Rated for northern-climate ice dams',seal:'Self-sealing around nails',roll:'2 sq (200 sq ft)',warranty:'Counts toward GAF Lifetime Roofing System'}, url:'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/leak-barriers/weatherwatch-ice-and-water-leak-barrier'},
+ 'stormguard':{tier:'Film-surfaced, high-temp', art:'membrane', tag:'Film-surfaced leak barrier with a high-temperature compound and great traction.', feats:['Guards against wind-driven rain, ice dams and backed-up gutter water','Blue synthetic surface with wet/dry traction for installers','250°F high-temperature compound; runs cooler than black underlayment','UL 790 Class A fire rating with GAF shingles'], specs:{surface:'Blue film surface',temp:'250°F high-temp compound',seal:'Self-adhering',roll:'2 sq (200 sq ft)',warranty:'Counts toward GAF Lifetime Roofing System'}, url:'https://www.gaf.com/en-us/roofing-materials/residential-roofing-materials/leak-barriers/stormguard-film-surfaced-leak-barrier'},
+ 'winterguard sand':{tier:'Sand-surfaced', art:'membrane', tag:'CertainTeed self-adhering waterproofing membrane for eaves and valleys.', feats:['Polymer-modified asphalt stretches and seals around nails','Sand-embedded surface for traction during installation','Designed to prevent water damage from ice dams','Part of CertainTeed’s Integrity Roof System'], specs:{surface:'Sand surface',seal:'Self-sealing around nails',roll:'2 sq (200 sq ft)'}},
+ 'winterguard ht pro':{tier:'High-temp', art:'membrane', tag:'High-temperature self-adhering waterproofing underlayment.', feats:['Withstands temperatures up to 260°F','Tough, tear-resistant film','Self-adhesive SBS-modified asphalt — waterproof barrier against ice dams and wind-driven rain','Works under shingle, slate, tile and metal roofing'], specs:{surface:'Tear-resistant film',temp:'Up to 260°F',seal:'Self-adhesive',roll:'2 sq (200 sq ft)'}},
+ 'grace ice & water':{tier:'Premium membrane', art:'membrane', tag:'GCP Grace Ice & Water Shield — rubberized asphalt with a slip-resistant film surface.', feats:['Seals around fasteners against ice dam and wind-driven rain leaks','Bonds firmly without heat; watertight overlaps','Ripcord® split-release feature for easier installation','35+ year track record; compatible with shingle, slate, tile, cedar and metal'], specs:{surface:'Slip-resistant film',temp:'Stays flexible to −20°F',seal:'Seals around fasteners',roll:'2 sq (200 sq ft)'}, url:'https://gcpat.com/en/solutions/products/grace-ice-water-shield'},
+ 'weatherlock mat':{tier:'Fiberglass mat', art:'membrane', tag:'Owens Corning self-sealing barrier against shingle blow-offs, wind-driven rain and ice damming.', feats:['SureStep® Technology — excellent traction for crews','Lightweight fiberglass-mat construction, easy to handle','Selvage edge for quicker application','UL Class A fire resistance under asphalt shingles'], specs:{surface:'SureStep® traction surface',seal:'Self-sealing, modified asphalt',roll:'2 sq (200 sq ft)'}, url:'https://owenscorning.com/roofing/products/weatherlock-mat'},
+ 'weatherlock g':{tier:'Granulated', art:'membrane', tag:'Owens Corning granulated self-sealing ice & water barrier.', feats:['Self-adhesive — creates a watertight seal around nails','Slip-resistant granulated surface for traction','Excellent tear resistance; taped selvedge edge seals between courses','Part of Owens Corning’s Total Protection Roofing System'], specs:{surface:'Granulated, fiberglass-reinforced',temp:'Low-temperature flexibility (ASTM D1970)',seal:'Self-sealing',roll:'2 sq (200 sq ft)'}},
+ 'weatherlock flex':{tier:'Flexible', art:'membrane', tag:'Owens Corning flexible self-sealing barrier for penetrations, corners and transitions.', feats:['Pliable poly surface conforms to irregular shapes and corners','Strong adhesion; seals around nail penetrations','Works in cold weather without cracking','Can be exposed to UV for up to 30 days'], specs:{surface:'Raised printed poly surface',temp:'Flexible in cold weather',seal:'Self-sealing',roll:'2 sq (200 sq ft)',warranty:'Up to 30 years with OC shingles'}, url:'https://owenscorning.com/roofing/products/weatherlock-flex'}
+};
+const ACC_ROWS = {
+  u:[['type','Type'],['water','Water resistance'],['uv','UV exposure'],['walk','Walkability'],['warranty','Warranty']],
+  i:[['surface','Surface'],['temp','Temperature'],['seal','Sealing'],['roll','Roll size'],['warranty','Warranty']]
+};
+function accClean(n){ return String(n||'').replace(/\s*\(\d+(\.\d+)?\s*sq\)/i,'').replace(/^(GAF|CT|OC)\s+/,'').trim(); }
+function accInfo(n){
+  const k = accClean(n).toLowerCase();
+  return ACC_INFO[k] || { tier:'', art:/water|ice|guard|lock|grace/.test(k)?'membrane':'roll', tag:'See the manufacturer website for full product details.', feats:[], specs:{} };
+}
+function accList(kind){
+  const src = kind==='u' ? UNDERLAYMENT_OPTIONS : IW_OPTIONS;
+  return (src[S_mfg] || src.CT || []).map(o => ({ name:o[0], price:o[1], key:o[0] }));
+}
+function accDiff(kind, base, t){
+  const m = Math.min(60, Math.max(1, cmpCfg.margin||35));
+  const mult = cmpTaxOn() ? 1 + MAT_PRICES.taxRate : 1;
+  return sellPrice((t.price - base.price) * ACC[kind].per * mult, m);
+}
+function accArt(kind, brand, key){
+  const gid='ag'+kind+key.length+brand.color.replace('#','');
+  const body = kind==='roll'
+    ? `<rect x="90" y="52" width="220" height="56" rx="6" fill="#e9e6df"/><ellipse cx="90" cy="80" rx="18" ry="28" fill="#cfcac0"/><ellipse cx="90" cy="80" rx="8" ry="13" fill="#8b8579"/><rect x="90" y="52" width="220" height="10" fill="#fff" opacity=".35"/><rect x="90" y="98" width="220" height="10" fill="#000" opacity=".12"/><ellipse cx="310" cy="80" rx="18" ry="28" fill="#f4f2ec"/><ellipse cx="310" cy="80" rx="8" ry="13" fill="#b9b3a6"/>`
+    : `<rect x="90" y="52" width="220" height="56" rx="6" fill="#3d4148"/><ellipse cx="90" cy="80" rx="18" ry="28" fill="#2c2f35"/><ellipse cx="90" cy="80" rx="8" ry="13" fill="#8b8579"/><g fill="#7d828c" opacity=".55">${Array.from({length:44},(_,i)=>`<circle cx="${112+(i%11)*19}" cy="${60+Math.floor(i/11)*13}" r="1.6"/>`).join('')}</g><ellipse cx="310" cy="80" rx="18" ry="28" fill="#4b4f57"/><ellipse cx="310" cy="80" rx="8" ry="13" fill="#b9b3a6"/>`;
+  return `<svg viewBox="0 0 400 150" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${brand.color}"/><stop offset="1" stop-color="${brand.dark}"/></linearGradient></defs><rect width="400" height="150" fill="url(#${gid})"/><ellipse cx="200" cy="118" rx="130" ry="9" fill="#000" opacity=".25"/>${body}</svg>`;
+}
+function accPanel(kind, p, role, o){
+  const brand = CMP_BRAND[S_mfg], info = accInfo(p.name), rows = ACC_ROWS[kind];
+  const bi = o.baseInfo;
+  const spec = rows.map(([k,l]) => {
+    const v = info.specs[k] || 'See website';
+    const bv = bi ? (bi.specs[k] || 'See website') : v;
+    const d = role!=='base' && bi && v!=='See website' && v!==bv;
+    return `<div class="cmp-spec${d?' diff':''}"><span>${l}</span><span>${v}</span></div>`;
+  }).join('');
+  const feats = info.feats.slice(0, o.compact ? 3 : 5);
+  const cls = role==='up' ? 'up' : role==='bud' ? 'bud' : 'base';
+  const ribbon = role==='up' ? '★ Upgrade option' : role==='bud' ? '✓ Budget option' : (kind==='u' ? 'Base underlayment' : 'Base ice & water');
+  return `<div class="cmp-panel ${cls}">
+    <div class="cmp-ribbon ${cls==='up'?'upg':cls==='bud'?'bud':'base'}">${ribbon}</div>
+    <div class="cmp-art">${accArt(info.art, brand, p.name)}<span class="cmp-brandtag">${brand.name}</span></div>
+    <div class="cmp-body">
+      <div><div class="cmp-tier">${info.tier || (kind==='u'?'Underlayment':'Ice & Water')}</div><div class="cmp-name">${accClean(p.name)}</div><div class="cmp-tag">${info.tag}</div></div>
+      ${feats.length ? `<ul class="cmp-feats">${feats.map(f=>`<li>${f}</li>`).join('')}</ul>` : ''}
+      <div class="cmp-specs">${spec}</div>
+      ${o.price}
+      <div class="cmp-btns"><a class="cmp-link solid" href="${info.url || brand.site}" target="_blank" rel="noopener noreferrer">🌐 View on ${brand.name}</a></div>
+    </div></div>`;
+}
+function accFootHtml(kind){
+  return `<div class="cmp-foot">Product details come from each manufacturer’s website and can change — use “View on” for the latest. Price differences are per square of roof${cmpTaxOn()?', including sales tax':''}, measured from the base product, and are added to the quote if an upgrade is selected.</div>`;
+}
+function accHtml(kind, mode){
+  const A = ACC[kind], full = mode==='full', compact = cmpIsCompact(mode);
+  const list = accList(kind), baseP = list[0];
+  const rootCls = `cmp-root${compact?' cmp-compact':''}`;
+  const act = kind==='u' ? 'tgU' : 'tgI', pact = kind==='u' ? 'pu' : 'pi';
+  const head = full
+    ? `<div class="cmp-sec-head"><div><div class="cmp-sec-title">${kind==='u'?'Upgrade your underlayment':'Upgrade your ice & water barrier'}</div><div class="cmp-sec-sub">Price difference per square from ${baseP?accClean(baseP.name):'the base'}.</div></div></div>`
+    : cmpSwitchHtml(act, A.on, kind==='u' ? 'Compare underlayments' : 'Compare ice & water');
+  if((!full && !A.on) || !baseP) return `<div class="${rootCls}">${head}</div>`;
+  const others = list.slice(1).sort((x,y)=>x.price-y.price);   // lowest → highest
+  if(!others.length) return `<div class="${rootCls}">${head}<div class="cmp-empty">No other options to compare.</div></div>`;
+  if(!others.find(p=>p.key===A.target)){
+    const sel = document.getElementById(kind==='u'?'underlaymentProd':'iwProd')?.value;
+    A.target = (others.find(p=>p.key===sel) || others.find(p=>accDiff(kind,baseP,p)>0) || others[0]).key;
+  }
+  const target = others.find(p=>p.key===A.target);
+  const chips = `<div class="cmp-chips">` + others.map(p => `<div class="cmp-chip${p.key===A.target?' sel':''}" data-act="${pact}" data-val="${p.key.replace(/"/g,'&quot;')}"><i style="background:${CMP_BRAND[S_mfg].color}"></i>${accClean(p.name)}<b class="cd">${cmpDiffText(accDiff(kind,baseP,p))}</b></div>`).join('') + `</div>`;
+  const d = accDiff(kind, baseP, target);
+  const sub = `${cmpTaxOn()?'materials + sales tax':'materials'} · vs. ${accClean(baseP.name)}`;
+  const r = Math.round(d);
+  const price = r===0 ? `<div class="cmp-price same"><small>Price difference</small><strong>Same price</strong><em>${sub}</em></div>`
+    : r<0 ? `<div class="cmp-price save"><small>You would save</small><strong>${fmt(-r)}<span>per square</span></strong><em>${sub}</em></div>`
+    : `<div class="cmp-price upg"><small>Upgrade investment</small><strong>+${fmt(r)}<span>per square</span></strong><em>${sub}</em></div>`;
+  const bi = accInfo(baseP.name);
+  return `<div class="${rootCls}">${head}${chips}<div class="cmp-grid">` +
+    accPanel(kind, baseP, 'base', {compact, price:cmpBasePriceBox()}) +
+    accPanel(kind, target, r<0?'bud':'up', {compact, baseInfo:bi, price}) + `</div></div>`;
+}
+
+cmpReady = true;
+renderInlineCompare();
+
 function generateProposal(d){
   const mfg = S_mfg;
   const col = MFG_COLORS[mfg];
@@ -4092,9 +4736,11 @@ function applyFullState(data){
 
   if(p.mfg) setMfg(p.mfg);
   sv('shingleProd', p.shingleProd);
+  renderInlineCompare();
   sv('shingleColor', p.shingleColor);
   sv('underlaymentProd', p.underlaymentProd);
   sv('iwProd', p.iwProd);
+  cmpTarget=null; ACC.u.target=null; ACC.i.target=null; renderInlineCompare();   // refresh comparisons for the loaded selections
 
   setToggleTo(document.getElementById('togSteep'), p.steep, ()=>toggleState('steep', document.getElementById('togSteep')));
   setToggleTo(document.getElementById('togHigh'),  p.high,  ()=>toggleState('high',  document.getElementById('togHigh')));
