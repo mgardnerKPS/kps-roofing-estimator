@@ -2487,8 +2487,6 @@ function summarySelectedItemsHtml(buildings, mult){
       rowsHtml.push(line(esc(u.name) + (buildings.length>1 ? ` <span style="opacity:.6">(${esc(bd.name)})</span>` : ''), `${fmtQty(qty)} ${esc(u.uom)} · ${fmt(sell)}`));
     });
   });
-  const repairs = UPGRADES.filter(u=>isFieldRateUpgrade(u.id)).filter(u=>document.getElementById('fchk_'+u.id)?.classList.contains('on')).map(u=>u.name);
-  if(repairs.length) rowsHtml.push(line('Additional repairs (priced in the field, if needed)', esc(repairs.join(', '))));
   rowsHtml.push(line('Material sales tax', S.includeTax ? 'Included' : 'Not included'));
   return `<hr class="sum-divider"/><div class="sum-label" style="margin-bottom:8px">Selected items — please confirm</div>${rowsHtml.join('')}`;
 }
