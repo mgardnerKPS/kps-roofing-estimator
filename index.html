@@ -2478,13 +2478,24 @@ function summarySelectedItemsHtml(buildings, mult){
   const cond = [['togSteep','Steep slope'],['togHigh','High roof']].filter(([id])=>document.getElementById(id)?.classList.contains('on')).map(x=>x[1]);
   if(cond.length) rowsHtml.push(line('Roof conditions', cond.join(', ')));
   buildings.forEach(bd=>{
+    // Roof features measured on Page 2 (per building)
+    const tag = buildings.length>1 ? ` <span style="opacity:.6">(${esc(bd.name)})</span>` : '';
+    const num = id => parseFloat(document.getElementById(id+'_b'+bd.idx)?.value||0);
+    if(num('mChimneys')>0) rowsHtml.push(line('Chimneys'+tag, num('mChimneys')));
+    if(num('mDormers')>0) rowsHtml.push(line('Dormers'+tag, num('mDormers')));
+    const skR = S_skyOp[bd.idx]==='reflash' ? num('mSkylights') : 0, skP = getSklReplaceTotalQty(bd.idx);
+    if(skR>0) rowsHtml.push(line('Skylights — reflash'+tag, skR));
+    if(skP>0) rowsHtml.push(line('Skylights — replace'+tag, skP));
+    if(bd.flatResult) rowsHtml.push(line('Flat roof / EPDM'+tag, 'Included'));
+    if(bd.pvcResult) rowsHtml.push(line('PVC trim (eaves & rakes)'+tag, 'Included'));
     UPGRADES.filter(u=>!isFieldRateUpgrade(u.id)).forEach(u=>{
       const chk = document.getElementById('uchk_'+u.id+'_b'+bd.idx);
       if(!(chk && chk.classList.contains('on'))) return;
       const qty = parseFloat(document.getElementById('uqty_'+u.id+'_b'+bd.idx)?.value||0);
       if(!qty) return;
       const sell = sellPrice(getUpgradeUnitCost(u, bd.idx), S.margin) * qty;
-      rowsHtml.push(line(esc(u.name) + (buildings.length>1 ? ` <span style="opacity:.6">(${esc(bd.name)})</span>` : ''), `${fmtQty(qty)} ${esc(u.uom)} · ${fmt(sell)}`));
+      const addOn = (typeof getGutterAddOnNote==='function') ? getGutterAddOnNote(u.id, bd.idx) : '';
+      rowsHtml.push(line(esc(u.name) + (addOn ? ` <span style="opacity:.6">(${esc(addOn)})</span>` : '') + tag, `${fmtQty(qty)} ${esc(u.uom)} · ${fmt(sell)}`));
     });
   });
   rowsHtml.push(line('Material sales tax', S.includeTax ? 'Included' : 'Not included'));
