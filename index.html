@@ -422,17 +422,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
          shared card, not per building, built by renderFieldRateUpgrades() -->
     <div id="fieldRateContainer"></div>
     <div class="card">
-      <div class="card-title">Gross Profit Margin</div>
+      <div class="card-title">Pricing</div>
       <div class="discount-row" style="padding-top:0;border-top:none;">
-        <label>Gross margin:</label>
-        <input class="disc-input" id="marginPct" type="number" min="1" max="60" step="0.5" value="30" oninput="setMarginFromInput()"/>
-        <span style="font-size:13px;color:#555;">%</span>
-      </div>
-      <div class="discount-row">
         <label>Field discount:</label>
         <input class="disc-input" id="discPct" type="number" min="0" max="20" step="0.5" value="0" oninput="refreshUpgrades();calcAll()"/>
         <span style="font-size:13px;color:#555;">%</span>
         <span class="disc-result" id="discAmt"></span>
+      </div>
+      <!-- Rep only: margin stays hidden while a customer may be looking at the screen -->
+      <button type="button" id="marginRepBtn" onclick="toggleMarginRep()" style="margin-top:12px;background:none;border:1px dashed #c9c5bc;border-radius:10px;padding:8px 12px;font-size:12.5px;color:#8a8ca0;cursor:pointer;width:100%;text-align:left;">🔒 Rep only — show margin</button>
+      <div id="marginRep" style="display:none;margin-top:10px;">
+        <div class="discount-row" style="padding-top:0;border-top:none;">
+          <label>Gross margin:</label>
+          <input class="disc-input" id="marginPct" type="number" min="1" max="60" step="0.5" value="30" oninput="setMarginFromInput()"/>
+          <span style="font-size:13px;color:#555;">%</span>
+        </div>
       </div>
     </div>
     <button class="btn-main" onclick="goPage(4)">See Full Quote →</button>
@@ -1303,7 +1307,7 @@ function onNumBuildingsInput(val){
 
 function goPage(n){
   if(n===1) renderInlineCompare();   // pick up any measurement / tax changes made on later pages
-  if(n===3){ renderUpgrades(); syncMarginInput(); updateMgmtEstimateDisplay(); }
+  if(n===3){ renderUpgrades(); syncMarginInput(); updateMgmtEstimateDisplay(); toggleMarginRep(false); }   // margin always starts hidden
   if(n===4){
     // sync tax button visual to current state
     const btn = document.getElementById('btnTax');
@@ -2022,6 +2026,13 @@ function calcAll(){
   return { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult, pvcResult, matResult, buildings };
 }
 
+function toggleMarginRep(force){
+  const box = document.getElementById('marginRep'), btn = document.getElementById('marginRepBtn');
+  if(!box || !btn) return;
+  const show = (typeof force==='boolean') ? force : box.style.display==='none';
+  box.style.display = show ? 'block' : 'none';
+  btn.textContent = show ? '🔓 Rep only — hide margin' : '🔒 Rep only — show margin';
+}
 function syncMarginInput(){
   const el = document.getElementById('marginPct');
   if(el) el.value = S.margin;
@@ -2259,6 +2270,13 @@ function renderFieldRateUpgrades(){
     <div id="fieldRateList">${items.map(buildFieldRateRowHTML).join('')}</div>
   </div>`;
   if(preserved) applyFieldRateState(preserved);
+  else {
+    // First build for this estimate: every "Additional Repair" starts selected (rep can uncheck any)
+    items.forEach(u=>{
+      document.getElementById('fchk_'+u.id)?.classList.add('on');
+      document.getElementById('fblock_'+u.id)?.classList.add('show');
+    });
+  }
 }
 
 function toggleFieldRateUpgrade(id){
@@ -2452,22 +2470,14 @@ function renderSummary(){
 
   document.getElementById('sumPrice').textContent = fmt(final);
   document.getElementById('sumSub').textContent =
-    `${m}% gross profit margin` + (disc>0 ? ` · ${disc}% field discount applied` : '') +
-    (numBuildings>1 ? ` · ${numBuildings} buildings` : '');
+    [disc>0 ? `${disc}% field discount applied` : '', numBuildings>1 ? `${numBuildings} buildings` : ''].filter(Boolean).join(' · ');
 
+  // Customer-safe: no cost, margin or profit lines here — those live only on the Internal Cost Sheet
   const rows = [
     ['Total squares (all buildings)', totalSq.toFixed(1)+' sq'],
-    ['Roofing, labor & materials (all buildings)', fmt(baseCost)],
-    upgCost>0 ? ['Upgrades', fmt(upgCost)] : null,
-    taxCost>0 ? ['Material sales tax (6.25%)', fmt(taxCost)] : null,
-    gc.dumpster>0 ? ['Dumpster', fmt(gc.dumpster)] : null,
-    gc.management>0 ? ['Project management ('+fmtDays(gc.mgmtDays)+(gc.anyOverride?' · incl. manual override':'')+')', fmt(gc.management)] : null,
-    gc.skylightMgmt>0 ? ['Skylight management', fmt(gc.skylightMgmt)] : null,
-    gc.permit>0 ? ['Permit (1.5%)', fmt(gc.permit)] : null,
-    ['Total cost', fmt(totalCost)],
-    ['Sell price', fmt(totalSell)],
+    disc>0 ? ['Price before discount', fmt(totalSell)] : null,
     disc>0 ? ['Discount ('+disc+'%)', '− '+fmt(saving)] : null,
-    ['Gross profit', fmt(gp)],
+    ['Total quote price', fmt(final)],
   ].filter(Boolean);
 
   document.getElementById('sumRows').innerHTML = rows.map((r,i)=>
