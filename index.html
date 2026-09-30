@@ -451,6 +451,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div class="sum-sub" id="sumSub"></div>
       <hr class="sum-divider"/>
       <div id="sumRows"></div>
+      <div id="sumSelected"></div>
     </div>
 
     <!-- Quick nav: jump links to each section below, plus expand/collapse all —
@@ -2463,22 +2464,59 @@ function combineMaterials(buildings){
   return order.map(k=>byKey[k]);
 }
 
+// "What you selected" list shown in the Total Quote Price card so the rep can confirm the scope with the customer
+function summarySelectedItemsHtml(buildings, mult){
+  const esc = t => String(t==null?'':t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const mfgLabel = {GAF:'GAF',CT:'CertainTeed',OC:'Owens Corning'};
+  const val = id => (document.getElementById(id)?.value||'').trim();
+  const color = val('shingleColor');
+  const line = (k,v) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;color:rgba(255,255,255,0.85);margin-bottom:5px"><span style="color:rgba(255,255,255,0.55)">${k}</span><span style="text-align:right;font-weight:600">${v}</span></div>`;
+  const rowsHtml = [];
+  rowsHtml.push(line('Shingle', esc((mfgLabel[S_mfg]||S_mfg)+' '+val('shingleProd').replace(/ AR$/,'')+(color?' — '+color:''))));
+  if(val('underlaymentProd')) rowsHtml.push(line('Underlayment', esc(val('underlaymentProd').replace(/\s*\(\d+ sq\)/,''))));
+  if(val('iwProd')) rowsHtml.push(line('Ice & Water', esc(val('iwProd').replace(/\s*\(\d+ sq\)/,''))));
+  const cond = [['togSteep','Steep slope'],['togHigh','High roof']].filter(([id])=>document.getElementById(id)?.classList.contains('on')).map(x=>x[1]);
+  if(cond.length) rowsHtml.push(line('Roof conditions', cond.join(', ')));
+  buildings.forEach(bd=>{
+    UPGRADES.filter(u=>!isFieldRateUpgrade(u.id)).forEach(u=>{
+      const chk = document.getElementById('uchk_'+u.id+'_b'+bd.idx);
+      if(!(chk && chk.classList.contains('on'))) return;
+      const qty = parseFloat(document.getElementById('uqty_'+u.id+'_b'+bd.idx)?.value||0);
+      if(!qty) return;
+      const sell = sellPrice(getUpgradeUnitCost(u, bd.idx), S.margin) * qty;
+      rowsHtml.push(line(esc(u.name) + (buildings.length>1 ? ` <span style="opacity:.6">(${esc(bd.name)})</span>` : ''), `${fmtQty(qty)} ${esc(u.uom)} · ${fmt(sell)}`));
+    });
+  });
+  const repairs = UPGRADES.filter(u=>isFieldRateUpgrade(u.id)).filter(u=>document.getElementById('fchk_'+u.id)?.classList.contains('on')).map(u=>u.name);
+  if(repairs.length) rowsHtml.push(line('Additional repairs (priced in the field, if needed)', esc(repairs.join(', '))));
+  rowsHtml.push(line('Material sales tax', S.includeTax ? 'Included' : 'Not included'));
+  return `<hr class="sum-divider"/><div class="sum-label" style="margin-bottom:8px">Selected items — please confirm</div>${rowsHtml.join('')}`;
+}
+
 function renderSummary(){
   const { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, buildings } = calcAll();
   const totalSq = getAggTotalSq();
   const disc = S.discount;
+  // Everything on this page is shown at SELL price (cost ÷ (1 − margin)); sales tax is folded into the sloped-roof material lines.
+  const mult = 1 / (1 - m / 100);
+  const tf = S.includeTax ? 1 + MAT_PRICES.taxRate : 1;
 
   document.getElementById('sumPrice').textContent = fmt(final);
   document.getElementById('sumSub').textContent =
     [disc>0 ? `${disc}% field discount applied` : '', numBuildings>1 ? `${numBuildings} buildings` : ''].filter(Boolean).join(' · ');
 
-  // Customer-safe: no cost, margin or profit lines here — those live only on the Internal Cost Sheet
+  // Customer-safe: sell prices only — no cost, margin or profit lines (those live on the Internal Cost Sheet)
   const rows = [
     ['Total squares (all buildings)', totalSq.toFixed(1)+' sq'],
+    ...(numBuildings>1 ? buildings.map(bd=>[bd.name, fmt(bd.subtotal*mult)]) : [['Roofing, labor, materials & upgrades', fmt(buildings.reduce((s,bd)=>s+bd.subtotal,0)*mult)]]),
+    gc.permit>0 ? ['Permit (1.5%)', fmt(gc.permit)] : null,
     disc>0 ? ['Price before discount', fmt(totalSell)] : null,
     disc>0 ? ['Discount ('+disc+'%)', '− '+fmt(saving)] : null,
     ['Total quote price', fmt(final)],
   ].filter(Boolean);
+
+  const selEl = document.getElementById('sumSelected');
+  if(selEl) selEl.innerHTML = summarySelectedItemsHtml(buildings, mult);
 
   document.getElementById('sumRows').innerHTML = rows.map((r,i)=>
     `<div class="sum-row${i>=rows.length-1?' bold':''}">
@@ -2493,27 +2531,27 @@ function renderSummary(){
   const bSummaries = buildings.map(bd=>{
     const matRows = bd.matResult ? bd.matResult.mats.map(m=>`
         <div class="detail-row">
-          <div><div class="detail-name">${m.name}</div><div class="detail-sub">${m.qty} ${m.uom} × ${fmtDec(m.price,2)}</div></div>
-          <div class="detail-prices"><div class="detail-sell">${fmtDec(m.qty*m.price,2)}</div></div>
+          <div><div class="detail-name">${m.name}</div><div class="detail-sub">${m.qty} ${m.uom} × ${fmtDec(m.price*tf*mult,2)}</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmtDec(m.qty*m.price*tf*mult,2)}</div></div>
         </div>`).join('') : '<div class="detail-sub" style="padding:6px 0">Enter squares on Roof Measurements to see materials.</div>';
 
     const flatBlock = bd.flatResult ? `
       <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:6px;padding-top:10px"><div class="detail-name" style="font-weight:600">Flat Roof / EPDM (${bd.flatResult.area.toFixed(0)} sf)</div></div>
       ${bd.flatResult.items.map(it=>`
         <div class="detail-row">
-          <div><div class="detail-name">${it.name}</div><div class="detail-sub">${fmtQty(it.qty)} ${it.uom} × ${fmtDec(it.price,2)}</div></div>
-          <div class="detail-prices"><div class="detail-sell">${fmtDec(it.qty*it.price,2)}</div></div>
+          <div><div class="detail-name">${it.name}</div><div class="detail-sub">${fmtQty(it.qty)} ${it.uom} × ${fmtDec(it.price*mult,2)}</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmtDec(it.qty*it.price*mult,2)}</div></div>
         </div>`).join('')}
-      <div class="detail-row"><div class="detail-name" style="color:#888">Flat roof labor</div><div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.flatResult.labor)}</div></div></div>` : '';
+      <div class="detail-row"><div class="detail-name" style="color:#888">Flat roof labor</div><div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.flatResult.labor*mult)}</div></div></div>` : '';
 
     const pvcBlock = bd.pvcResult ? `
       <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:6px;padding-top:10px"><div class="detail-name" style="font-weight:600">PVC Trim (Eaves &amp; Rakes)</div></div>
       ${bd.pvcResult.items.map(it=>`
         <div class="detail-row">
-          <div><div class="detail-name">${it.name}</div><div class="detail-sub">${fmtQty(it.qty)} ${it.uom} × ${fmtDec(it.price,2)}${!it.price?' <span style="color:#b3261e">(price not set)</span>':''}</div></div>
-          <div class="detail-prices"><div class="detail-sell">${fmtDec(it.qty*it.price,2)}</div></div>
+          <div><div class="detail-name">${it.name}</div><div class="detail-sub">${fmtQty(it.qty)} ${it.uom} × ${fmtDec(it.price*mult,2)}${!it.price?' <span style="color:#b3261e">(price not set)</span>':''}</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmtDec(it.qty*it.price*mult,2)}</div></div>
         </div>`).join('')}
-      <div class="detail-row"><div class="detail-name" style="color:#888">PVC trim labor</div><div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.pvcResult.labor)}</div></div></div>` : '';
+      <div class="detail-row"><div class="detail-name" style="color:#888">PVC trim labor</div><div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.pvcResult.labor*mult)}</div></div></div>` : '';
 
     const laborTotal = bd.labor + bd.chimneyLabor + bd.dormerLabor + bd.skylightLabor;
 
@@ -2523,9 +2561,9 @@ function renderSummary(){
     // building's full cost (incl. overhead) is visible in one place.
     const gcBlock = bd.gc.total>0 ? `
       <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:6px;padding-top:10px"><div class="detail-name" style="font-weight:600">General Conditions</div></div>
-      ${bd.gc.dumpster>0?`<div class="detail-row"><div class="detail-name">Dumpster</div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.dumpster)}</div></div></div>`:''}
-      ${bd.gc.management>0?`<div class="detail-row"><div><div class="detail-name">Project Management</div><div class="detail-sub">${fmtDays(bd.gc.mgmtDays)}${bd.gc.override?' · manual':''}</div></div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.management)}</div></div></div>`:''}
-      ${bd.gc.skylightMgmt>0?`<div class="detail-row"><div class="detail-name">Skylight Management</div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.skylightMgmt)}</div></div></div>`:''}` : '';
+      ${bd.gc.dumpster>0?`<div class="detail-row"><div class="detail-name">Dumpster</div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.dumpster*mult)}</div></div></div>`:''}
+      ${bd.gc.management>0?`<div class="detail-row"><div><div class="detail-name">Project Management</div><div class="detail-sub">${fmtDays(bd.gc.mgmtDays)}${bd.gc.override?' · manual':''}</div></div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.management*mult)}</div></div></div>`:''}
+      ${bd.gc.skylightMgmt>0?`<div class="detail-row"><div class="detail-name">Skylight Management</div><div class="detail-prices"><div class="detail-sell">${fmt(bd.gc.skylightMgmt*mult)}</div></div></div>`:''}` : '';
 
     // Optional Upgrades selected for THIS building — mirrors gcBlock above,
     // shown at sell price (unlike the cost-basis table in bd.upg used by the
@@ -2562,30 +2600,26 @@ function renderSummary(){
       <div class="acc-header" onclick="toggleAccordion('${accId}')">
         <span class="acc-chevron">▸</span>
         <div class="card-title" style="margin-bottom:0">${bd.name} — Materials, Labor &amp; GC</div>
-        <span class="acc-preview">${fmt(bd.subtotal)}</span>
+        <span class="acc-preview">${fmt(bd.subtotal*mult)}</span>
       </div>
       <div class="acc-body">
         <div class="detail-row"><div class="detail-name">Squares</div><div class="detail-prices"><div class="detail-sell">${bd.sq.toFixed(1)} sq</div></div></div>
         ${matRows}
         <div class="detail-row" style="border-bottom:none">
-          <div><div class="detail-name" style="color:#888">Sloped roofing material subtotal</div></div>
-          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.matResult?bd.matResult.subtotal:0)}</div></div>
+          <div><div class="detail-name" style="color:#888">Sloped roofing material subtotal${S.includeTax?' (incl. sales tax)':''}</div></div>
+          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt((bd.matResult?bd.matResult.subtotal:0)*tf*mult)}</div></div>
         </div>
         ${flatBlock}
         ${pvcBlock}
         <div class="detail-row" style="border-bottom:none">
           <div><div class="detail-name" style="color:#888">Labor subtotal (base + chimneys + dormers + skylights)</div></div>
-          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(laborTotal)}</div></div>
-        </div>
-        <div class="detail-row" style="border-bottom:none">
-          <div><div class="detail-name" style="color:#888">Material sales tax (6.25%)</div></div>
-          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(bd.taxCost)}</div></div>
+          <div class="detail-prices"><div class="detail-sell" style="color:#888">${fmt(laborTotal*mult)}</div></div>
         </div>
         ${gcBlock}
         ${upgBlock}
         <div class="detail-row" style="border-bottom:none;border-top:1px solid #f0ede8;margin-top:4px;padding-top:10px">
-          <div><div class="detail-name" style="font-weight:600">${bd.name} Subtotal (hard cost, incl. GC &amp; upgrades)</div></div>
-          <div class="detail-prices"><div class="detail-sell">${fmt(bd.subtotal)}</div></div>
+          <div><div class="detail-name" style="font-weight:600">${bd.name} Subtotal (incl. GC &amp; upgrades)</div></div>
+          <div class="detail-prices"><div class="detail-sell">${fmt(bd.subtotal*mult)}</div></div>
         </div>
       </div>
     </div>`;
@@ -2596,14 +2630,13 @@ function renderSummary(){
 
   // ── COMBINED TOTAL MATERIALS (all buildings, one list) ────────────────────
   const combined = combineMaterials(buildings);
-  const combinedSubtotal = combined.reduce((s,i)=>s+i.qty*i.price,0);
+  const combinedSubtotal = buildings.reduce((s,bd)=>s + ((bd.matResult?bd.matResult.subtotal:0)*tf + (bd.flatResult?bd.flatResult.items.reduce((a,i)=>a+i.qty*i.price,0):0) + (bd.pvcResult?bd.pvcResult.items.reduce((a,i)=>a+i.qty*i.price,0):0)) * mult, 0);
   const totalMatWrap = document.getElementById('totalMaterialsWrap');
   if(totalMatWrap){
     const tmOpen = isAccOpen('totalMaterialsCard', false);
     const tmRows = combined.length ? combined.map(m=>`
         <div class="detail-row">
-          <div><div class="detail-name">${m.name}</div><div class="detail-sub">${fmtQty(m.qty)} ${m.uom} × ${fmtDec(m.price,2)}</div></div>
-          <div class="detail-prices"><div class="detail-sell">${fmtDec(m.qty*m.price,2)}</div></div>
+          <div><div class="detail-name">${m.name}</div><div class="detail-sub">${fmtQty(m.qty)} ${m.uom}</div></div>
         </div>`).join('') : '<div class="detail-sub" style="padding:6px 0">No materials yet — enter measurements on Roof Measurements.</div>';
     totalMatWrap.innerHTML = `<div class="card acc-card${tmOpen?' open':''}" id="totalMaterialsCard">
       <div class="acc-header" onclick="toggleAccordion('totalMaterialsCard')">
