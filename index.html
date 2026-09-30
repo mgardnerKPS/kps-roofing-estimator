@@ -543,8 +543,8 @@ function suggestProjectId(){
 // fixed number.
 const DEFAULT_UPGRADES = [
   {id:'iw',       name:'3rd Row of Ice & Water Shield (Eaves)',     unitCost:6,   uom:'LF',      label:'Linear feet of eaves (defaults to this building\'s eaves)'},
-  {id:'gutter_c', name:'Commercial gutters & downspouts',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet (defaults to this building\'s eaves)'},
   {id:'gutter_r', name:'Residential gutters & downspouts',  unitCost:19,  uom:'LF',      label:'Total gutter linear feet (defaults to this building\'s eaves)'},
+  {id:'gutter_c', name:'Commercial gutters & downspouts',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet (defaults to this building\'s eaves)'},
   {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls'},
   {id:'dorm',     name:'Siding removal/reinstall — dormers',        unitCost:450, uom:'dormer',  label:'Number of dormers'},
   {id:'warranty', name:'SureStart 5-star warranty',                  unitCost:20,  uom:'sq',      label:'Squares (auto-filled from this building)'},
@@ -3086,6 +3086,9 @@ async function syncPricingFromGraph() {
       const fetchedIds = new Set(built.UPGRADES.map(u => u.id));
       const missingFromSheet = DEFAULT_UPGRADES.filter(u => !fetchedIds.has(u.id));
       UPGRADES = built.UPGRADES.concat(missingFromSheet);
+      // Residential gutters always listed above Commercial, whatever order the sheet returns them in
+      { const gr = UPGRADES.findIndex(u=>u.id==='gutter_r'), gc2 = UPGRADES.findIndex(u=>u.id==='gutter_c');
+        if(gr>gc2 && gc2>=0){ UPGRADES = UPGRADES.slice(); const [r]=UPGRADES.splice(gr,1); UPGRADES.splice(gc2,0,r); } }
     } else {
       UPGRADES = DEFAULT_UPGRADES;
     }
