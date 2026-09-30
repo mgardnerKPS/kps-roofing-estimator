@@ -2472,7 +2472,8 @@ function summarySelectedItemsHtml(buildings, mult){
   const color = val('shingleColor');
   const line = (k,v) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;color:rgba(255,255,255,0.85);margin-bottom:5px"><span style="color:rgba(255,255,255,0.55)">${k}</span><span style="text-align:right;font-weight:600">${v}</span></div>`;
   const rowsHtml = [];
-  rowsHtml.push(line('Shingle', esc((mfgLabel[S_mfg]||S_mfg)+' '+val('shingleProd').replace(/ AR$/,'')+(color?' — '+color:''))));
+  rowsHtml.push(line('Shingle', esc((mfgLabel[S_mfg]||S_mfg)+' '+val('shingleProd').replace(/ AR$/,''))));
+  rowsHtml.push(line('Shingle color', color ? esc(color) : '<span style="color:#f5b183">Not selected yet</span>'));
   if(val('underlaymentProd')) rowsHtml.push(line('Underlayment', esc(val('underlaymentProd').replace(/\s*\(\d+ sq\)/,''))));
   if(val('iwProd')) rowsHtml.push(line('Ice & Water', esc(val('iwProd').replace(/\s*\(\d+ sq\)/,''))));
   const cond = [['togSteep','Steep slope'],['togHigh','High roof']].filter(([id])=>document.getElementById(id)?.classList.contains('on')).map(x=>x[1]);
