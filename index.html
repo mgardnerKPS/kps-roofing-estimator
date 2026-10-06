@@ -545,8 +545,6 @@ const DEFAULT_UPGRADES = [
   {id:'iw',       name:'3rd Row of Ice & Water Shield (Eaves)',     unitCost:6,   uom:'LF',      label:'Linear feet of eaves (defaults to this building\'s eaves)'},
   {id:'gutter_r', name:'Residential gutters & downspouts',  unitCost:19,  uom:'LF',      label:'Total gutter linear feet (defaults to this building\'s eaves)'},
   {id:'gutter_c', name:'Commercial gutters & downspouts',   unitCost:24,  uom:'LF',      label:'Total gutter linear feet (defaults to this building\'s eaves)'},
-  {id:'trans',    name:'Siding removal/reinstall — transition walls',unitCost:250, uom:'wall',   label:'Number of transition walls'},
-  {id:'dorm',     name:'Siding removal/reinstall — dormers',        unitCost:450, uom:'dormer',  label:'Number of dormers'},
   {id:'warranty', name:'SureStart 5-star warranty',                  unitCost:20,  uom:'sq',      label:'Squares (auto-filled from this building)'},
   {id:'cheek_flash',    name:'Transition (Cheekwall) Flashing Integration', unitCost:20, uom:'LF', label:'Step flashing length (auto-filled from this building\'s Step Flashing measurement)'},
   {id:'headwall_flash', name:'Headwall flashing integration',       unitCost:20,  uom:'LF',      label:'Flashing length (auto-filled from this building\'s Flashing measurement)'},
@@ -554,6 +552,17 @@ const DEFAULT_UPGRADES = [
   {id:'framing',  name:'Roof framing repairs',                       unitCost:28.95,uom:'BF',      label:'Board feet (est.)'},
   {id:'siding',   name:'New vinyl siding replacement',               unitCost:16,  uom:'SF',      label:'Square feet of siding'},
 ];
+// Retired upgrades. The shared pricing sheet still carries rows for these
+// (ItemKey trans / dorm), and syncPricingFromGraph() takes whatever Upgrade
+// rows the sheet has — so dropping them from DEFAULT_UPGRADES above is not
+// enough on its own, the sync would hand them straight back. This list is
+// filtered out of the synced result as well, so a stale sheet row can't
+// resurrect a retired option. Cheekwall/headwall flashing integration
+// replaces both. Setting Active=FALSE on those two rows in
+// Estimator-Pricing.xlsx is still worth doing, but isn't required.
+const RETIRED_UPGRADE_IDS = ['trans', 'dorm'];
+const isRetiredUpgrade = id => RETIRED_UPGRADE_IDS.includes(id);
+
 let UPGRADES = DEFAULT_UPGRADES;
 
 // Standard "what's included" line items shown on the client-facing Draft
@@ -763,11 +772,7 @@ function updateMgmtEstimateDisplay(){
   }
 }
 
-function toggleExtraIW(b, el){
-  BS[b].extraIW = !BS[b].extraIW;
-  el.classList.toggle('on', BS[b].extraIW);
-  onMeasureChange();
-}
+
 
 function toggleFlatRoof(b, el){
   BS[b].hasFlat = !BS[b].hasFlat;
@@ -1095,7 +1100,6 @@ function buildingCardHTML(b){
       <div class="field"><label>Dormers (ea)</label><input id="mDormers_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
       <div class="field"><label>Ice &amp; Water — Additional Eave Row</label>
         <div class="tog-group">
-          <div class="tog accent" id="togExtraIW_b${b}" onclick="toggleExtraIW(${b},this)">Add extra row along eaves</div>
         </div>
         <p style="font-size:11px;color:#aaa;margin-top:6px;">Adds 1 extra row of I&amp;W along all eaves (eaves ÷ 60 LF/roll, rounded up)</p>
       </div>
@@ -1677,8 +1681,8 @@ const DEFAULT_PVC_PRICES = {
     '1x4':  32.40, // $/18' board · confirmed 2026-09-01
     '1x6':  50.99, // $/18' board · confirmed 2026-09-01
     '1x8':  67.39, // $/18' board · confirmed 2026-09-01
-    '1x10':  0.00, // PLACEHOLDER — update with real invoice price per 18' board
-    '1x12':  0.00, // PLACEHOLDER
+    '1x10':  85.39, // $/18' board · confirmed 2026-09-01
+    '1x12': 103.99, // $/18' board · confirmed 2026-09-01
   },
 };
 let PVC_PRICES = DEFAULT_PVC_PRICES;
@@ -1689,6 +1693,21 @@ let PVC_PRICES = DEFAULT_PVC_PRICES;
 
 // I&W scope multipliers (rows of coverage per edge type)
 const IW_ROWS = { eaves: 2, rakes: 1, valleys: 1, hipRidges: 0 };
+
+// A 3rd row of Ice & Water along the eaves is priced from the product actually
+// selected on page 1, not a flat rate: one roll is 2 sq (200 sf), which covers
+// about 60 LF of a 36" course once overlap is allowed for, and the sub charges
+// $2/LF to lay it. calcAll() then puts margin and the permit percentage on top
+// the same way it does for every other upgrade cost.
+//
+// This replaced a flat $6/LF, which sat well above the real cost on the GAF and
+// CertainTeed products and double-charged whenever the old "Add extra row along
+// eaves" toggle on page 2 was used as well — that toggle is gone, this upgrade
+// is now the only way to add the row, and it carries the material itself.
+const IW_EXTRA_ROW_LF_PER_ROLL  = 60;
+const IW_EXTRA_ROW_LABOR_PER_LF = 2.00;
+function getExtraIWMaterialPerLF(){ return getIWPrice() / IW_EXTRA_ROW_LF_PER_ROLL; }
+function getExtraIWUnitCost(){ return getExtraIWMaterialPerLF() + IW_EXTRA_ROW_LABOR_PER_LF; }
 
 function roundUp(n) { return Math.ceil(n); }
 
@@ -1852,8 +1871,10 @@ function calcMaterials(b) {
   if(!sq) return null;
 
   // I&W rolls first (needed for underlayment calc)
-  const eaveRows = IW_ROWS.eaves + (BS[b].extraIW ? 1 : 0);
-  const extraIWRolls = BS[b].extraIW ? roundUp(eaves / 60) : 0;
+  // The extra eave row's material now rides on the 'iw' upgrade's own $/LF
+  // (getExtraIWUnitCost), so it is no longer added here — adding it in both
+  // places charged for the same row twice.
+  const eaveRows = IW_ROWS.eaves;
   const baseIWRolls = Math.max(0, roundUp(
     ((eaves * eaveRows / 65) + (rakes * IW_ROWS.rakes / 65) +
      (valleys * IW_ROWS.valleys / 65) + ((hips + ridges) * IW_ROWS.hipRidges / 65)) * 1.05
@@ -1871,7 +1892,6 @@ function calcMaterials(b) {
     { name: 'Starter Strip',      uom: 'bundles', qty: roundUp((eaves + 0.5 * rakes) / 100 * 1.1),     price: p.starterStrip },
     { name: getUnderlaymentName(), uom: 'rolls',   qty: roundUp(((sq - iwRolls * 2) / 9) * 1.1),        price: getUnderlaymentPrice() },
     { name: getIWName(),           uom: 'rolls',   qty: iwRolls,                                         price: getIWPrice()    },
-    { name: getIWName()+' — Extra Eave Row', uom: 'rolls', qty: extraIWRolls,                             price: getIWPrice()   },
     { name: 'Roof Vents',         uom: 'ea',      qty: Math.round(sq / 7.5),                            price: p.roofVent     },
     { name: 'Step Flashing',      uom: 'packs',   qty: roundUp(stepF / 30 * 1.05),                     price: p.stepFlashing },
     { name: 'Roofing Nails',      uom: 'boxes',   qty: roundUp(sq / 12.5),                             price: p.nails        },
@@ -2166,6 +2186,9 @@ function getUpgradeUnitCost(u, b){
   if(u.id==='gutter_c' && isResidentialActiveFor(b)){
     return getGutterUpgradeDiffUnitCost() + getGutterAddOnCost(u.id, b);
   }
+  // Priced off the selected I&W product rather than the catalog's flat rate,
+  // so it follows the material chosen on page 1. See getExtraIWUnitCost().
+  if(u.id==='iw') return getExtraIWUnitCost();
   return u.unitCost + getGutterAddOnCost(u.id, b);
 }
 
@@ -3083,9 +3106,10 @@ async function syncPricingFromGraph() {
     // already exist in the spreadsheet. Once Mike adds a row for an id, the
     // synced row takes over and wins (fetched entries listed first / kept).
     if (built.UPGRADES.length) {
-      const fetchedIds = new Set(built.UPGRADES.map(u => u.id));
+      const fetched = built.UPGRADES.filter(u => !isRetiredUpgrade(u.id));
+      const fetchedIds = new Set(fetched.map(u => u.id));
       const missingFromSheet = DEFAULT_UPGRADES.filter(u => !fetchedIds.has(u.id));
-      UPGRADES = built.UPGRADES.concat(missingFromSheet);
+      UPGRADES = fetched.concat(missingFromSheet);
       // Residential gutters always listed above Commercial, whatever order the sheet returns them in
       { const gr = UPGRADES.findIndex(u=>u.id==='gutter_r'), gc2 = UPGRADES.findIndex(u=>u.id==='gutter_c');
         if(gr>gc2 && gc2>=0){ UPGRADES = UPGRADES.slice(); const [r]=UPGRADES.splice(gr,1); UPGRADES.splice(gc2,0,r); } }
@@ -3840,10 +3864,6 @@ function upgradeScopeBullets(bd){
       text = `Install new ${u.name} (${measurement}${addOnNote?', '+addOnNote:''})`;
     } else if(u.id==='iw'){
       text = `Install additional (3rd row) Ice &amp; Water Shield along eaves (${measurement})`;
-    } else if(u.id==='trans'){
-      text = `Remove and reinstall siding at transition walls (${measurement})`;
-    } else if(u.id==='dorm'){
-      text = `Remove and reinstall siding at dormers (${measurement})`;
     } else if(u.id==='cheek_flash'){
       text = `Transition (cheekwall) flashing integration (${measurement})`;
     } else if(u.id==='headwall_flash'){
@@ -4722,7 +4742,6 @@ function applyBuildingState(b, bd){
   // no longer applied — those measurements were removed in favor of the
   // cheekwall/headwall flashing-integration upgrades below.
 
-  setToggleTo(document.getElementById('togExtraIW_b'+b), bd.extraIW, ()=>toggleExtraIW(b, document.getElementById('togExtraIW_b'+b)));
   setToggleTo(document.getElementById('togFlatRoof_b'+b), bd.hasFlat, ()=>toggleFlatRoof(b, document.getElementById('togFlatRoof_b'+b)));
 
   sv('mFlatArea_b'+b, bd.flatArea); sv('mFlatWallTerm_b'+b, bd.flatWallTerm); sv('mFlatOpenEdge_b'+b, bd.flatOpenEdge);
@@ -4808,6 +4827,15 @@ function applyFullState(data){
   renderUpgrades();
   for(let b=0; b<numBuildings; b++){
     const bd = data.buildings[b];
+    // Saves from before the extra eave row became an upgrade carry it as the
+    // page-2 toggle (bd.extraIW). Bring it across so an old job still shows
+    // the row — at this building's eaves length, priced the new way.
+    if(bd && bd.extraIW && !(bd.upgrades && bd.upgrades.iw && bd.upgrades.iw.checked)){
+      const eaves = parseFloat(document.getElementById('mEaves_b'+b)?.value||0);
+      if(eaves > 0){
+        bd.upgrades = Object.assign({}, bd.upgrades, { iw: { checked:true, qty:eaves } });
+      }
+    }
     if(bd && bd.upgrades) applyUpgradeState(b, bd.upgrades, true);
   }
   // Backward compat: saves from before Optional Upgrades moved per-building
