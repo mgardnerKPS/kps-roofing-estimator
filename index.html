@@ -8,6 +8,8 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0ede8;min-height:100vh;color:#1a1a1a;}
 .app{max-width:440px;margin:0 auto;padding-bottom:5rem;}
+#liveTotal{display:none;}
+#liveTotal.lt-off{display:none!important;}
 
 /* HEADER */
 .hdr{background:#1a1a2e;color:#fff;padding:1.25rem 1.25rem 1rem;position:sticky;top:0;z-index:100;}
@@ -300,6 +302,65 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .acc-body{display:block!important;}
   .acc-header .acc-chevron{display:none!important;}
 }
+
+/* ==========================================================================
+   SCREEN SIZES
+   Phones keep the layout exactly as it was — that is the size this app was
+   built for and it works. Wider screens get more of their width used, via
+   plain media queries rather than measuring the screen in JS: a query
+   re-evaluates on rotation, window drag, split screen and zoom, whereas a
+   one-off JS measurement goes stale the moment any of those happen.
+   ========================================================================== */
+
+/* ---- tablet ---- */
+@media (min-width: 700px){
+  .app{ max-width: 860px; }
+
+  /* Two fields across instead of one long scroll. Only plain .field blocks
+     pair up; a card title, a .row2, a toggle, a button or anything else
+     spans the full width so nothing composite gets split in half. */
+  .card{ display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; align-content: start; }
+  .card > *{ grid-column: 1 / -1; }
+  .card > .field{ grid-column: auto; }
+}
+
+/* ---- computer ---- */
+@media (min-width: 1100px){
+  .app{
+    max-width: 1180px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    column-gap: 26px;
+    align-items: start;
+  }
+  .hdr{ grid-column: 1 / -1; }
+  #page1, #page2, #page3, #page4{ grid-column: 1; min-width: 0; }
+
+  #liveTotal{
+    display: block;
+    grid-column: 2;
+    position: sticky;
+    top: 118px;
+    background: #fff;
+    border-radius: 14px;
+    padding: 1.125rem 1.25rem;
+    margin-top: 0.875rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .lt-label{ font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:#888; }
+  .lt-price{ font-size:30px; font-weight:700; letter-spacing:-0.5px; margin-top:6px; color:#1a1a2e; }
+  .lt-sub{ font-size:12px; color:#888; margin-top:4px; }
+  .lt-rows{ margin-top:14px; border-top:1px solid #eee; padding-top:12px; }
+  .lt-rows .lt-row{ display:flex; justify-content:space-between; gap:12px; font-size:12.5px; padding:3px 0; color:#555; }
+  .lt-rows .lt-row b{ color:#1a1a1a; font-weight:600; }
+  .lt-rows .lt-row.rep{ color:#e97132; }
+}
+
+/* Wider still: a third column of fields rather than very long input boxes. */
+@media (min-width: 1500px){
+  .app{ max-width: 1400px; grid-template-columns: minmax(0, 1fr) 320px; }
+  .card{ grid-template-columns: 1fr 1fr 1fr; }
+}
 </style>
 <!-- KPS App Suite shared sign-in — used to sync live pricing from the KPS Pricing SharePoint list -->
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
@@ -483,6 +544,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <button class="btn-back" onclick="goPage(3)">← Adjust Quote</button>
     <p class="note">Use Print → Save as PDF to share this quote with your client.</p>
   </div>
+
+  <!-- Running total, shown only on a computer-sized screen (see the
+       responsive block at the end of the stylesheet). Updated by
+       updateLiveTotal() on every recalculation. -->
+  <aside id="liveTotal" aria-live="polite">
+    <div class="lt-label">Running total</div>
+    <div class="lt-price" id="ltPrice">&mdash;</div>
+    <div class="lt-sub" id="ltSub">Enter measurements to see a price</div>
+    <div class="lt-rows" id="ltRows"></div>
+  </aside>
 
 </div>
 
@@ -1098,11 +1169,6 @@ function buildingCardHTML(b){
       </div>
       <div class="field"><label>Chimneys (ea)</label><input id="mChimneys_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
       <div class="field"><label>Dormers (ea)</label><input id="mDormers_b${b}" type="number" min="0" placeholder="0" oninput="onMeasureChange()"/></div>
-      <div class="field"><label>Ice &amp; Water — Additional Eave Row</label>
-        <div class="tog-group">
-        </div>
-        <p style="font-size:11px;color:#aaa;margin-top:6px;">Adds 1 extra row of I&amp;W along all eaves (eaves ÷ 60 LF/roll, rounded up)</p>
-      </div>
     </div>
 
     <div class="card">
@@ -2042,9 +2108,49 @@ function calcAll(){
 
   gc.permit = permit;
 
+  updateLiveTotal({ final, totalCost, gp, m, buildings });
+
   const discEl = document.getElementById('discAmt');
   if(discEl) discEl.textContent = S.discount > 0 ? `saving ${fmt(saving)}` : '';
   return { baseCost, upgCost, gcFixed, gc, totalCost, totalSell, final, saving, gp, m, taxCost, flatResult, pvcResult, matResult, buildings };
+}
+
+// Running total for the desktop side panel. The element only exists as a
+// visible thing at >=1100px, but this runs regardless — it is a few DOM
+// writes and keeps the panel correct the moment a window is widened.
+// Cost and margin follow the same "Rep only" lock as page 3, so a client
+// looking over a shoulder sees the price and nothing else.
+function updateLiveTotal(d){
+  const price = document.getElementById('ltPrice');
+  if(!price) return;
+  // Page 4 IS the quote summary — no point repeating it alongside.
+  const panel = document.getElementById('liveTotal');
+  if(panel) panel.classList.toggle('lt-off', S.page === 4);
+  const sub = document.getElementById('ltSub'), rows = document.getElementById('ltRows');
+  const sq = getAggTotalSq();
+  if(!d || !(d.final > 0)){
+    price.textContent = '—';
+    if(sub) sub.textContent = 'Enter measurements to see a price';
+    if(rows) rows.innerHTML = '';
+    return;
+  }
+  price.textContent = fmt(d.final);
+  const nb = numBuildings;
+  if(sub) sub.textContent = `${sq.toFixed(1)} sq · ${nb} building${nb===1?'':'s'}`;
+  if(!rows) return;
+  const repBox = document.getElementById('marginRep');
+  const showRep = !!(repBox && repBox.style.display !== 'none');
+  const line = (k,v,cls)=>`<div class="lt-row${cls?' '+cls:''}"><span>${k}</span><b>${v}</b></div>`;
+  let html = '';
+  (d.buildings||[]).forEach(bd=>{
+    if(bd.subtotal > 0) html += line(bd.name, fmt(sellPrice(bd.subtotal, d.m)));
+  });
+  if(showRep){
+    html += line('Cost', fmt(d.totalCost), 'rep');
+    html += line('Gross profit', fmt(d.gp), 'rep');
+    html += line('Margin', d.m.toFixed(1)+'%', 'rep');
+  }
+  rows.innerHTML = html;
 }
 
 function toggleMarginRep(force){
